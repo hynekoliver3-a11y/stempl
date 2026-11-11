@@ -119,8 +119,10 @@ function viewStaff(){
       <ul class="clist" id="found"></ul>
       <div class="msg err" id="stOut" role="status"></div>
     </div>
+    ${installBtn("Stáhnout obsluhu do telefonu","")}
     ${s.role==="owner"?`<a class="btn ghost" href="#/prehled">Přehled podniku</a>`:""}
   </div>`;
+  if(!demo.on) setManifest("Štempl – obsluha","Štempl",BASE+"#/obsluha");
   $("#out").addEventListener("click",logout);
   let stream=null, raf=0, busy=false;
   const stop=()=>{ cancelAnimationFrame(raf); if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } };

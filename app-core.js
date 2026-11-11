@@ -105,6 +105,36 @@ function closeSheet(){ $("#sheet").classList.remove("on"); $("#scrim").classList
 $("#scrim").addEventListener("click",closeSheet);
 addEventListener("keydown",e=>{ if(e.key==="Escape") closeSheet(); });
 
+/* ---------- install to phone (home screen) ---------- */
+/* Android/Chrome offers a native install prompt; iPhone has none, so we show short instructions instead */
+let installEvt=null;
+const isStandalone=()=>{ try{ return matchMedia("(display-mode: standalone)").matches||navigator.standalone===true; }catch(e){ return false; } };
+const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); installEvt=e; });
+addEventListener("appinstalled",()=>{ installEvt=null; $$("[data-install]").forEach(b=>b.hidden=true); });
+function installBtn(label,cls){ return isStandalone()?"":`<button class="btn ${cls||"primary"}" type="button" data-install>${esc(label||"Stáhnout do telefonu")}</button>`; }
+function setManifest(name,shortName,url){
+  try{
+    const m={name,short_name:shortName,start_url:url,scope:BASE,display:"standalone",background_color:"#f5f2ea",theme_color:"#f5f2ea",lang:"cs",
+      icons:[{src:BASE+"icon-192.png",sizes:"192x192",type:"image/png"},{src:BASE+"icon-512.png",sizes:"512x512",type:"image/png"}]};
+    let l=document.querySelector('link[rel="manifest"]'); if(!l){ l=document.createElement("link"); l.rel="manifest"; document.head.appendChild(l); }
+    l.href="data:application/manifest+json,"+encodeURIComponent(JSON.stringify(m));
+  }catch(e){}
+}
+document.addEventListener("click",async e=>{
+  const b=e.target.closest&&e.target.closest("[data-install]"); if(!b) return;
+  if(installEvt){
+    const ev=installEvt; installEvt=null;
+    try{ ev.prompt(); await ev.userChoice; }catch(err){}
+    return;
+  }
+  const steps=isIOS()
+    ?`<ol class="small" style="margin:0;padding-left:20px;display:grid;gap:8px"><li>Dole (nebo nahoře) ťukněte na <b>Sdílet</b> – čtvereček se šipkou nahoru.</li><li>Vyberte <b>Přidat na plochu</b>.</li><li>Potvrďte <b>Přidat</b>. Ikona Štemplu se objeví mezi aplikacemi.</li></ol><p class="tiny muted">Položku nevidíte? Sjeďte v nabídce níž, nebo stránku otevřete v Safari.</p>`
+    :`<ol class="small" style="margin:0;padding-left:20px;display:grid;gap:8px"><li>Otevřete nabídku prohlížeče – tři tečky <b>⋮</b> vpravo nahoře.</li><li>Vyberte <b>Nainstalovat aplikaci</b> nebo <b>Přidat na plochu</b>.</li><li>Potvrďte. Ikona Štemplu se objeví mezi aplikacemi.</li></ol>`;
+  openSheet(`<h2 id="sheetTitle" style="font-size:1.6rem">Stáhnout do telefonu</h2><p class="muted">Štempl se přidá na plochu jako aplikace. Nic se nestahuje z obchodu a nezabere místo.</p>${steps}<button class="btn primary" type="button" id="instOk">Rozumím</button>`);
+  $("#instOk").addEventListener("click",closeSheet);
+});
+
 /* ---------- cookie notice (information only – we use no consent-requiring cookies) ---------- */
 if(!store.get("cookieok",false)){ $("#cbar").hidden=false; document.body.classList.add("hasbar"); }
 $("#cbarOk").addEventListener("click",()=>{ store.set("cookieok",true); $("#cbar").hidden=true; document.body.classList.remove("hasbar"); });

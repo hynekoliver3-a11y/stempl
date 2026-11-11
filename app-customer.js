@@ -100,7 +100,7 @@ async function showCard(token,slug,pre,fresh){
       <div class="panel stack" style="gap:10px">
         <b>Karta je uložená automaticky</b>
         <p class="small muted">Razítka jsou uložená u nás, ne v telefonu, a karta neexpiruje. Nejrychleji ji otevřete z plochy: Sdílet → Přidat na plochu. Nebo si uložte odkaz.</p>
-        <div class="row-btns"><button class="btn ghost" id="copyLink" type="button">Kopírovat odkaz na kartu</button></div>
+        <div class="row-btns">${installBtn("Stáhnout kartu do telefonu")}<button class="btn ghost" id="copyLink" type="button">Kopírovat odkaz na kartu</button></div>
         <div class="msg small" id="copyOut" role="status"></div>
         <p class="small muted">Celkem ${visits(last.total_stamps)}${last.rewards_redeemed?" · vydané odměny: "+last.rewards_redeemed:""} · karta od ${fmtD(last.created_at)}</p>
       </div>
@@ -163,7 +163,7 @@ function thanks(c,token){
 async function viewMyCards(){
   document.title="Moje karty · Štempl";
   const all=cardStore.all(), slugs=Object.keys(all);
-  app.innerHTML=`<div class="wrap narrow stack" style="padding-block:28px"><div><div class="eyebrow">Štempl</div><h1 style="font-size:2.2rem;margin-top:6px">Moje karty</h1></div><div id="myList" class="stack"><p class="muted">Načítám…</p></div><a class="btn ghost" href="#/obnovit">Obnovit kartu e-mailem</a></div>${foot()}`;
+  app.innerHTML=`<div class="wrap narrow stack" style="padding-block:28px"><div><div class="eyebrow">Štempl</div><h1 style="font-size:2.2rem;margin-top:6px">Moje karty</h1></div><div id="myList" class="stack"><p class="muted">Načítám…</p></div>${installBtn("Stáhnout Štempl do telefonu")}<a class="btn ghost" href="#/obnovit">Obnovit kartu e-mailem</a></div>${foot()}`;
   if(!slugs.length){ $("#myList").innerHTML=`<p class="muted">V tomto prohlížeči zatím nemáte žádnou kartu. Naskenujte QR kód v podniku, nebo si kartu obnovte e-mailem.</p>`; return; }
   const my=routeSeq; const rows=await Promise.all(slugs.map(s=>rpc("get_card",{p_token:all[s]}).catch(()=>null))); if(stale(my)) return;
   $("#myList").innerHTML=rows.map((c,i)=>c?`<a class="lcard" style="text-decoration:none;--accent:${esc(c.business.accent)}" href="#/k/${esc(c.business.slug)}"><div class="eyebrow">Věrnostní karta</div><div class="biz">${esc(c.business.name)}</div><p class="small muted" style="margin-top:8px">${Math.min(c.stamps,c.business.stamps_needed)} z ${c.business.stamps_needed} razítek${c.reward_ready?" · odměna čeká":""}</p></a>`:"").join("")||`<p class="muted">Karty se nepodařilo načíst.</p>`;

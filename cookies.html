@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f5f2ea">
+<title>Zásady cookies · Štempl</title>
+<link rel="icon" href="icon-192.png" type="image/png">
+<style>
+:root{--paper:#f5f2ea;--card:#fffdf8;--ink:#1c1a17;--muted:#6e675d;--line:rgba(28,26,23,.12);--brand:#d9480f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 1rem/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:760px;margin:0 auto;padding:32px 16px 60px}
+a{color:inherit}
+h1,h2{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-weight:800;letter-spacing:-.025em;line-height:1.1}
+h1{font-size:2.3rem;margin:8px 0 18px} h2{font-size:1.35rem;margin:30px 0 8px}
+p,li{color:#3a352f}
+.eyebrow{font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.logo{display:inline-flex;align-items:center;gap:8px;font:800 1.25rem/1 system-ui,Arial,sans-serif;text-decoration:none;color:var(--ink)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 20px;margin-top:18px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:560px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85em;background:rgba(28,26,23,.06);padding:1px 5px;border-radius:5px}
+.btn{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border-radius:12px;border:1.5px solid var(--ink);font-weight:600;text-decoration:none;background:none;cursor:pointer;font:inherit;font-weight:600}
+.muted{color:var(--muted)} .small{font-size:.88rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="logo" href="./#/"><svg width="24" height="24" viewBox="0 0 100 100" style="color:#d9480f"><circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="10"/><path d="M32 52l12 12 24-26" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg>Štempl</a>
+  <div class="eyebrow" style="margin-top:28px">Platné od 27. 10. 2026</div>
+  <h1>Zásady používání cookies</h1>
+
+  <div class="box"><b>Stručně:</b> Štempl nepoužívá žádné reklamní, analytické ani sledovací cookies a nepouští do aplikace kódy třetích stran (Google Analytics, Facebook Pixel apod.). Ukládáme jen to, bez čeho věrnostní karta nefunguje. Proto po vás nechceme souhlas a nezobrazujeme cookie lištu se souhlasem.</div>
+
+  <h2>Co je cookie a úložiště prohlížeče</h2>
+  <p>Cookies a takzvané místní úložiště (localStorage) jsou malé záznamy, které si webová stránka uloží ve vašem prohlížeči. Štempl používá výhradně místní úložiště a mezipaměť aplikace. Klasické cookies sám nenastavuje.</p>
+
+  <h2>Co přesně ukládáme</h2>
+  <div class="box scroll">
+    <table>
+      <thead><tr><th>Název</th><th>K čemu slouží</th><th>Jak dlouho</th><th>Typ</th></tr></thead>
+      <tbody>
+        <tr><td><code>stempl.cards</code></td><td>Náhodný kód vaší věrnostní karty, aby se vám karta po naskenování QR kódu v podniku otevřela znovu.</td><td>Dokud kartu nesmažete nebo nevymažete data prohlížeče</td><td>Nezbytné</td></tr>
+        <tr><td><code>stempl.staff</code></td><td>Přihlášení obsluhy nebo majitele podniku (adresa a kód podniku). Jen na zařízeních zaměstnanců.</td><td>Do odhlášení</td><td>Nezbytné</td></tr>
+        <tr><td><code>stempl.ikey</code></td><td>Přihlášení provozovatele do správy, jen pokud zvolí „zapamatovat“.</td><td>Do odhlášení</td><td>Nezbytné</td></tr>
+        <tr><td><code>stempl.cookieok</code></td><td>Že jste zavřeli informační lištu o cookies, aby se neukazovala pořád.</td><td>Trvale</td><td>Nezbytné</td></tr>
+        <tr><td>Mezipaměť aplikace (service worker)</td><td>Uloží soubory aplikace (stránku a ikony), aby se karta rychle načetla i při slabém signálu. Neobsahuje osobní údaje.</td><td>Do další aktualizace aplikace</td><td>Nezbytné</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Samotná razítka a údaje karty nejsou uložené v telefonu, ale na našem serveru. Karta proto neexpiruje ani po dlouhé neaktivitě. Pokud data prohlížeče smažete, kartu obnovíte odkazem, který vám pošleme na uložený e-mail, nebo vám ji najde obsluha v podniku.</p>
+
+  <h2>Proč nepotřebujeme váš souhlas</h2>
+  <p>Podle § 89 odst. 3 zákona č. 127/2005 Sb., o elektronických komunikacích, a směrnice ePrivacy se souhlas nevyžaduje u ukládání, které je nezbytné k poskytnutí služby, o kterou jste sami požádali. Všechny záznamy výše jsou právě takové: bez nich by karta ani přihlášení obsluhy nefungovaly.</p>
+
+  <h2>Služby třetích stran</h2>
+  <p>Aplikace používá písma vašeho telefonu a knihovny (například generátor QR kódů) jsou uložené přímo na našem webu, takže se při načtení stránky nic nestahuje z Googlu ani jiných služeb. Komunikujeme jen s naším serverem (Supabase, EU). Když sami kliknete na odkaz pro recenzi na Googlu nebo podnik otevře platební stránku Stripe, platí na těchto stránkách zásady cookies Googlu a Stripe.</p>
+
+  <h2>Jak úložiště smazat</h2>
+  <ul>
+    <li>Kartu i se všemi údaji smažete tlačítkem <b>Smazat kartu a moje údaje</b> přímo na kartě.</li>
+    <li>Všechna data Štemplu ve vašem prohlížeči odstraníte v nastavení prohlížeče (Nastavení → Soukromí → Data webů), nebo tlačítkem níže.</li>
+  </ul>
+  <p><button class="btn" type="button" id="clear">Smazat data Štemplu v tomto prohlížeči</button> <span class="small muted" id="out"></span></p>
+  <p class="small muted">Pozor: smazáním dat v prohlížeči se karta nesmaže z našeho serveru, jen ji tento telefon „zapomene“. Pro úplné smazání použijte tlačítko na kartě.</p>
+
+  <h2>Kontakt</h2>
+  <p>Provozovatel: Oliver Hynek, Brno, e-mail <a href="mailto:stemplapp@gmail.com">stemplapp@gmail.com</a>. Více o osobních údajích najdete v <a href="./#/soukromi">zásadách ochrany osobních údajů</a>.</p>
+  <p style="margin-top:30px"><a class="btn" href="./#/">Zpět do aplikace</a></p>
+</div>
+<script>
+document.getElementById("clear").addEventListener("click",async function(){
+  try{ Object.keys(localStorage).filter(function(k){return k.indexOf("stempl.")===0}).forEach(function(k){localStorage.removeItem(k)}); }catch(e){}
+  try{ if(window.caches){ var ks=await caches.keys(); await Promise.all(ks.map(function(k){return caches.delete(k)})); } }catch(e){}
+  try{ if(navigator.serviceWorker){ var rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(function(r){return r.unregister()})); } }catch(e){}
+  document.getElementById("out").textContent="Hotovo, data Štemplu v tomto prohlížeči jsou smazaná.";
+});
+</script>
+</body>
+</html>

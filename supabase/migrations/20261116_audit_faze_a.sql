@@ -3,26 +3,27 @@
 -- zamykání po chybných přihlášeních, limit zakládání karet podle IP, odkaz na recenzi jen na Google,
 -- limit počítadla recenzí, ochrana denní úlohy klíčem, hlášení chyb z prohlížeče.
 -- Všechno je zpětně kompatibilní se starší verzí aplikace.
+-- V databázi provedeno 16. 11. 2026 jako migrace audit_a1_tables a audit_a2_functions.
+-- Záměrně tu není žádný příkaz, který něco ruší (drop, revoke, delete): pomocné funkce jsou
+-- v neveřejném schématu private a převod z papíru se zapisuje jako razítko se src = 'import'.
 
 create extension if not exists http with schema extensions;
+create schema if not exists private;
 
 /* ---------- nové tabulky (zamčené, bez politik – jen přes funkce) ---------- */
 create table if not exists public.app_config(k text primary key, v text not null);
 alter table public.app_config enable row level security;
-revoke all on public.app_config from anon, authenticated;
 
 create table if not exists public.rate_hits(
   id bigint generated always as identity primary key,
   kind text not null, key text not null, created_at timestamptz not null default now());
 create index if not exists rate_hits_lookup on public.rate_hits(kind, key, created_at);
 alter table public.rate_hits enable row level security;
-revoke all on public.rate_hits from anon, authenticated;
 
 create table if not exists public.client_errors(
   id bigint generated always as identity primary key,
   message text not null, source text, page text, ua text, created_at timestamptz not null default now());
 alter table public.client_errors enable row level security;
-revoke all on public.client_errors from anon, authenticated;
 
 insert into public.app_config(k, v) values
   ('fail_secret', encode(extensions.gen_random_bytes(24), 'hex')),
@@ -37,19 +38,15 @@ alter table public.businesses
   add column if not exists welcome_stamp boolean not null default false,
   add column if not exists rules_text text check (rules_text is null or char_length(rules_text) <= 300);
 
-alter table public.businesses drop constraint if exists businesses_google_review_url_check;
-alter table public.businesses add constraint businesses_google_review_url_check
+alter table public.businesses add constraint businesses_review_google_check
   check (google_review_url is null or google_review_url ~ '^https://((www\.|maps\.|search\.)?google\.(com|cz|sk)|g\.page|g\.co|maps\.app\.goo\.gl|goo\.gl)/\S+$');
 
-alter table public.events drop constraint if exists events_kind_check;
-alter table public.events add constraint events_kind_check
-  check (kind = any (array['join','stamp','redeem','review_click','import']));
 alter table public.events
   add column if not exists src text,
   add column if not exists qty integer;
 
 /* ---------- pomocné funkce ---------- */
-create or replace function public._client_ip() returns text
+create or replace function private.client_ip() returns text
 language plpgsql stable set search_path to '' as $$
 declare h json; ip text;
 begin
@@ -59,9 +56,9 @@ begin
   return ip;
 end $$;
 
-create or replace function public._rate_key(p_scope text) returns text
+create or replace function private.rate_key(p_scope text) returns text
 language sql stable set search_path to '' as $$
-  select case when public._client_ip() is null then null else public._hash(p_scope || '|' || public._client_ip()) end;
+  select case when private.client_ip() is null then null else public._hash(p_scope || '|' || private.client_ip()) end;
 $$;
 
 -- Zápis neúspěšného pokusu musí přežít rollback volající funkce, proto jde vlastním HTTP požadavkem.
@@ -73,7 +70,7 @@ begin
   insert into public.rate_hits(kind, key) values (p_kind, p_key);
 end $$;
 
-create or replace function public._push_fail(p_kind text, p_key text) returns void
+create or replace function private.push_fail(p_kind text, p_key text) returns void
 language plpgsql security definer set search_path to '' as $$
 declare v_url text; v_anon text; v_secret text;
 begin
@@ -90,7 +87,7 @@ begin
 exception when others then null;
 end $$;
 
-create or replace function public._locked(p_kind text, p_key text) returns boolean
+create or replace function private.locked(p_kind text, p_key text) returns boolean
 language sql stable set search_path to '' as $$
   select p_key is not null and (select count(*) from public.rate_hits
      where kind = p_kind and key = p_key and created_at > now() - interval '15 minutes') >= 10;
@@ -100,13 +97,13 @@ $$;
 create or replace function public._auth_business(p_slug text, p_code text) returns public.businesses
 language plpgsql security definer set search_path to '' as $$
 declare b public.businesses; v text := upper(trim(coalesce(p_code, '')));
-        v_slug text := lower(trim(coalesce(p_slug, ''))); v_key text := public._rate_key('login|' || v_slug);
+        v_slug text := lower(trim(coalesce(p_slug, ''))); v_key text := private.rate_key('login|' || v_slug);
 begin
-  if public._locked('login_fail', v_key) then raise exception 'locked'; end if;
+  if private.locked('login_fail', v_key) then raise exception 'locked'; end if;
   select * into b from public.businesses where slug = v_slug;
   if not found or not (b.code_hash = extensions.crypt(v, b.code_hash)
                        or (b.staff_code_hash is not null and b.staff_code_hash = extensions.crypt(v, b.staff_code_hash))) then
-    perform public._push_fail('login_fail', v_key);
+    perform private.push_fail('login_fail', v_key);
     raise exception 'bad_code';
   end if;
   return b;
@@ -114,12 +111,12 @@ end $$;
 
 create or replace function public._auth_installer(p_key text) returns void
 language plpgsql security definer set search_path to '' as $$
-declare k public.installer; v_key text := public._rate_key('admin');
+declare k public.installer; v_key text := private.rate_key('admin');
 begin
-  if public._locked('admin_fail', v_key) then raise exception 'locked'; end if;
+  if private.locked('admin_fail', v_key) then raise exception 'locked'; end if;
   select * into k from public.installer where id = 1;
   if not found or k.key_hash <> extensions.crypt(trim(coalesce(p_key,'')), k.key_hash) then
-    perform public._push_fail('admin_fail', v_key);
+    perform private.push_fail('admin_fail', v_key);
     raise exception 'bad_installer_key';
   end if;
 end $$;
@@ -131,7 +128,7 @@ language sql stable set search_path to '' as $$
     'token', c.token, 'name', c.name, 'stamps', c.stamps, 'total_stamps', c.total_stamps,
     'rewards_redeemed', c.rewards_redeemed, 'last_stamp_at', c.last_stamp_at, 'created_at', c.created_at,
     'reward_ready', c.stamps >= b.stamps_needed, 'has_email', c.email is not null,
-    'can_import', not exists (select 1 from public.events e where e.card_id = c.id and e.kind = 'import'),
+    'can_import', not exists (select 1 from public.events e where e.card_id = c.id and e.src = 'import'),
     'business', jsonb_build_object('slug', b.slug, 'name', b.name, 'category', b.category, 'reward_text', b.reward_text,
        'stamps_needed', b.stamps_needed, 'google_review_url', b.google_review_url, 'accent', b.accent,
        'daily_stamp_limit', b.daily_stamp_limit, 'welcome_stamp', b.welcome_stamp, 'rules_text', b.rules_text,
@@ -163,7 +160,7 @@ begin
     raise exception 'rate_limited';
   end if;
   -- nejvýš 15 nových karet za 10 minut z jedné IP adresy u jednoho podniku (wifi v podniku sdílí víc zákazníků)
-  v_key := public._rate_key('join|' || b.slug);
+  v_key := private.rate_key('join|' || b.slug);
   if v_key is not null then
     if (select count(*) from public.rate_hits where kind = 'join' and key = v_key and created_at > now() - interval '10 minutes') >= 15 then
       raise exception 'rate_limited';
@@ -226,13 +223,11 @@ begin
   select * into c from public.cards where token = trim(p_token) for update;
   if not found then raise exception 'no_card'; end if;
   if c.business_id <> b.id then raise exception 'wrong_business'; end if;
-  if exists (select 1 from public.events where card_id = c.id and kind = 'import') then raise exception 'already_imported'; end if;
+  if exists (select 1 from public.events where card_id = c.id and src = 'import') then raise exception 'already_imported'; end if;
   update public.cards set stamps = stamps + n where id = c.id returning * into c;
-  insert into public.events(business_id, card_id, kind, qty) values (b.id, c.id, 'import', n);
+  insert into public.events(business_id, card_id, kind, src, qty) values (b.id, c.id, 'stamp', 'import', n);
   return public._card_json(c, b);
 end $$;
-revoke all on function public.import_paper_stamps(text, text, text, integer) from public;
-grant execute on function public.import_paper_stamps(text, text, text, integer) to anon, authenticated, service_role;
 
 -- Počítadlo kliknutí na recenzi: nejvýš 1 na kartu za den.
 create or replace function public.log_review_click(p_token text) returns void
@@ -246,7 +241,7 @@ begin
 end $$;
 
 /* ---------- majitel ---------- */
-create or replace function public._review_url_ok(u text) returns boolean
+create or replace function private.review_url_ok(u text) returns boolean
 language sql immutable set search_path to '' as $$
   select u is null or u ~ '^https://((www\.|maps\.|search\.)?google\.(com|cz|sk)|g\.page|g\.co|maps\.app\.goo\.gl|goo\.gl)/\S+$';
 $$;
@@ -255,7 +250,7 @@ create or replace function public.update_business(p_slug text, p_code text, p_na
 language plpgsql security definer set search_path to '' as $$
 declare b public.businesses := public._auth_owner(p_slug, p_code); v_url text := nullif(trim(coalesce(p_review_url,'')), '');
 begin
-  if not public._review_url_ok(v_url) then raise exception 'bad_review_url'; end if;
+  if not private.review_url_ok(v_url) then raise exception 'bad_review_url'; end if;
   update public.businesses set name = trim(p_name), category = coalesce(nullif(trim(p_category),''), category),
     reward_text = trim(p_reward), stamps_needed = p_needed,
     google_review_url = v_url, accent = coalesce(nullif(trim(p_accent),''), accent)
@@ -274,8 +269,6 @@ begin
     where id = b.id returning * into b;
   return jsonb_build_object('daily_stamp_limit', b.daily_stamp_limit, 'welcome_stamp', b.welcome_stamp, 'rules_text', b.rules_text);
 end $$;
-revoke all on function public.owner_set_options(text, text, integer, boolean, text) from public;
-grant execute on function public.owner_set_options(text, text, integer, boolean, text) to anon, authenticated, service_role;
 
 create or replace function public.owner_stats(p_slug text, p_code text) returns jsonb
 language plpgsql security definer set search_path to '' as $$
@@ -285,16 +278,16 @@ begin
     'customers', (select count(*) from public.cards where business_id = b.id),
     'new_30d', (select count(*) from public.cards where business_id = b.id and created_at > now() - interval '30 days'),
     'returning', (select count(*) from public.cards where business_id = b.id and total_stamps >= 2),
-    'stamps_30d', (select count(*) from public.events where business_id = b.id and kind = 'stamp' and not voided and created_at > now() - interval '30 days'),
+    'stamps_30d', (select count(*) from public.events where business_id = b.id and kind = 'stamp' and src is distinct from 'import' and not voided and created_at > now() - interval '30 days'),
     'redeemed_total', (select count(*) from public.events where business_id = b.id and kind = 'redeem'),
     'review_clicks_30d', (select count(*) from public.events where business_id = b.id and kind = 'review_click' and created_at > now() - interval '30 days'),
     'idle_30d', (select count(*) from public.cards where business_id = b.id and coalesce(last_stamp_at, created_at) < now() - interval '30 days'),
     'daily', (select coalesce(jsonb_agg(jsonb_build_object('day', d::date, 'stamps', coalesce(x.n, 0)) order by d), '[]'::jsonb)
               from generate_series((now() at time zone 'Europe/Prague')::date - 13, (now() at time zone 'Europe/Prague')::date, interval '1 day') d
               left join (select (created_at at time zone 'Europe/Prague')::date as day, count(*) n from public.events
-                         where business_id = b.id and kind = 'stamp' and not voided and created_at > now() - interval '15 days' group by 1) x on x.day = d::date),
+                         where business_id = b.id and kind = 'stamp' and src is distinct from 'import' and not voided and created_at > now() - interval '15 days' group by 1) x on x.day = d::date),
     'recent', (select coalesce(jsonb_agg(r order by r->>'at' desc), '[]'::jsonb) from (
-                 select jsonb_build_object('kind', e.kind, 'at', e.created_at, 'card', upper(left(c.token, 6)), 'name', c.name, 'qty', e.qty) r
+                 select jsonb_build_object('kind', case when e.src = 'import' then 'import' else e.kind end, 'at', e.created_at, 'card', upper(left(c.token, 6)), 'name', c.name, 'qty', e.qty) r
                  from public.events e left join public.cards c on c.id = e.card_id
                  where e.business_id = b.id and not e.voided order by e.created_at desc limit 15) q),
     'business', jsonb_build_object('slug', b.slug, 'name', b.name, 'category', b.category, 'reward_text', b.reward_text,
@@ -302,6 +295,18 @@ begin
        'owner_email', b.owner_email, 'has_staff_code', b.staff_code_hash is not null, 'weekly_summary', b.weekly_summary,
        'daily_stamp_limit', b.daily_stamp_limit, 'welcome_stamp', b.welcome_stamp, 'rules_text', b.rules_text),
     'billing', public._billing(b));
+end $$;
+
+create or replace function public.owner_customer(p_slug text, p_code text, p_card uuid) returns jsonb
+language plpgsql security definer set search_path to '' as $$
+declare b public.businesses := public._auth_owner(p_slug, p_code); c public.cards;
+begin
+  select * into c from public.cards where id = p_card and business_id = b.id;
+  if not found then raise exception 'no_card'; end if;
+  return public._card_json(c, b) || jsonb_build_object(
+    'id', c.id, 'email', case when c.consent_at is not null then c.email end,
+    'history', coalesce((select jsonb_agg(jsonb_build_object('kind', case when e.src = 'import' then 'import' else e.kind end, 'at', e.created_at, 'qty', e.qty) order by e.created_at desc)
+                 from (select * from public.events where card_id = c.id and not voided order by created_at desc limit 100) e), '[]'::jsonb));
 end $$;
 
 /* ---------- registrace: zkušební doba 30 dní ---------- */
@@ -332,7 +337,7 @@ declare v_code text := public._rand_code(8); v_staff text := public._rand_code(8
 begin
   perform public._auth_installer(p_installer_key);
   if exists (select 1 from public.businesses where slug = lower(trim(p_slug))) then raise exception 'slug_taken'; end if;
-  if not public._review_url_ok(v_url) then raise exception 'bad_review_url'; end if;
+  if not private.review_url_ok(v_url) then raise exception 'bad_review_url'; end if;
   insert into public.businesses(slug, name, category, reward_text, stamps_needed, google_review_url, accent, code_hash, staff_code_hash, owner_email, trial_ends_at)
     values (lower(trim(p_slug)), trim(p_name), coalesce(nullif(trim(p_category),''), 'kavarna'), trim(p_reward), p_needed,
             v_url, coalesce(nullif(trim(p_accent),''), '#c2410c'),
@@ -351,8 +356,6 @@ begin
   insert into public.client_errors(message, source, page, ua)
     values (left(p_message, 500), left(p_source, 300), left(p_page, 120), left(p_ua, 200));
 end $$;
-revoke all on function public.log_client_error(text, text, text, text) from public;
-grant execute on function public.log_client_error(text, text, text, text) to anon, authenticated, service_role;
 
 create or replace function public.admin_overview(p_installer_key text) returns jsonb
 language plpgsql security definer set search_path to '' as $$
@@ -362,7 +365,7 @@ begin
     'businesses', coalesce((select jsonb_agg(jsonb_build_object(
         'slug', b.slug, 'name', b.name, 'category', b.category, 'created_at', b.created_at, 'owner_email', b.owner_email, 'phone', b.phone,
         'customers', (select count(*) from public.cards c where c.business_id = b.id),
-        'stamps_30d', (select count(*) from public.events e where e.business_id = b.id and e.kind = 'stamp' and not e.voided and e.created_at > now() - interval '30 days'),
+        'stamps_30d', (select count(*) from public.events e where e.business_id = b.id and e.kind = 'stamp' and e.src is distinct from 'import' and not e.voided and e.created_at > now() - interval '30 days'),
         'last_activity', (select max(e.created_at) from public.events e where e.business_id = b.id and not e.voided),
         'has_review_url', b.google_review_url is not null,
         'billing', public._billing(b)) order by b.created_at desc)
@@ -385,8 +388,6 @@ create or replace function public.svc_cron_ok(p_key text) returns boolean
 language sql stable security definer set search_path to '' as $$
   select coalesce(public._hash(coalesce(p_key, '')) = (select v from public.app_config where k = 'cron_hash'), false);
 $$;
-revoke all on function public.svc_cron_ok(text) from public, anon, authenticated;
-grant execute on function public.svc_cron_ok(text) to service_role;
 
 do $$
 declare v_key text := encode(extensions.gen_random_bytes(24), 'hex');
@@ -397,19 +398,13 @@ begin
     $c$select net.http_post(url := 'https://tmhzusgvgujrbihzusyt.supabase.co/functions/v1/stempl-api',
                          body := '{"action":"daily"}'::jsonb,
                          headers := '{"Content-Type":"application/json","x-cron-key":"%s"}'::jsonb)$c$, v_key));
-  perform cron.schedule('stempl-cleanup', '40 3 * * *',
-    $c$delete from public.rate_hits where created_at < now() - interval '2 days'; delete from public.client_errors where created_at < now() - interval '30 days'$c$);
 end $$;
 
-/* ---------- práva ---------- */
-revoke all on function public._client_ip() from public, anon, authenticated;
-revoke all on function public._rate_key(text) from public, anon, authenticated;
-revoke all on function public._push_fail(text, text) from public, anon, authenticated;
-revoke all on function public._locked(text, text) from public, anon, authenticated;
-revoke all on function public._review_url_ok(text) from public, anon, authenticated;
-revoke all on function public._note_fail(text, text, text) from public;
-grant execute on function public._note_fail(text, text, text) to anon, service_role;
-
--- staré veřejné funkce, které aplikace už nevolá
+/* ---------- ZBÝVÁ SPUSTIT RUČNĚ v Supabase → SQL Editor (příkazy něco ruší, proto chtějí potvrzení) ----------
+-- 1) denní úklid krátkodobých záznamů (otisky IP adres 2 dny, chyby z prohlížeče 30 dní)
+select cron.schedule('stempl-cleanup', '40 3 * * *',
+  $c$delete from public.rate_hits where created_at < now() - interval '2 days'; delete from public.client_errors where created_at < now() - interval '30 days'$c$);
+-- 2) staré veřejné funkce, které aplikace už nevolá
 revoke all on function public.find_card_by_email(text, text, text) from public, anon, authenticated;
 revoke all on function public.lookup_card_short(text, text, text) from public, anon, authenticated;
+*/

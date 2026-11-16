@@ -18,26 +18,29 @@ async function viewJoin(slug){
     return setAccent($("#jc"),b.accent);
   }
   app.innerHTML=`<div class="wrap narrow stack" style="padding-block:28px">
-    <div class="panel stack" style="gap:10px" id="backBox">
-      <b>Už jste tu kartu měli?</b>
-      <p class="small muted">Telefon ji mohl po delší době zapomenout (dělá to hlavně iPhone). Razítka nezmizela, kartu vám obnovíme.</p>
-      <form class="form" id="backForm" novalidate><div class="two" style="grid-template-columns:1fr auto"><input class="input" id="backEmail" type="email" autocomplete="email" placeholder="E-mail, který jste ke kartě dali" aria-label="E-mail ke kartě"><button class="btn primary" type="submit">Obnovit</button></div></form>
-      <div class="msg small" id="backOut" role="status"></div>
-      <p class="tiny muted">Nedali jste ke kartě e-mail? Řekněte obsluze své jméno, kartu vám najde.</p>
-    </div>
     <div class="lcard" id="jc"><div class="eyebrow">Věrnostní karta</div><div class="biz">${esc(b.name)}</div>
       <div class="rw"><span class="small muted">${b.stamps_needed} ${plural(b.stamps_needed,"razítko","razítka","razítek")}</span><span class="small"><b>${esc(b.reward_text)}</b></span></div>
-      ${stampsGrid(0,b.stamps_needed,-1)}
+      ${stampsGrid(b.welcome_stamp?1:0,b.stamps_needed,-1)}
+      ${b.rules_text?`<p class="small muted" style="margin-top:12px">${esc(b.rules_text)}</p>`:""}
     </div>
     <form class="form panel" id="joinForm" novalidate>
       <h2 style="font-size:1.6rem">Získejte kartu zdarma</h2>
-      <p class="muted small">Za každou návštěvu razítko, po ${b.stamps_needed}. ${esc(b.reward_text.toLowerCase())}. Nic se nestahuje a karta vám zůstane natrvalo.</p>
+      <p class="muted small">${b.welcome_stamp?"První razítko máte hned. ":""}Za každou návštěvu razítko, po ${b.stamps_needed}. ${esc(b.reward_text.toLowerCase())}. Nic se nestahuje a karta vám zůstane natrvalo.</p>
       <label class="field">Křestní jméno <small>nepovinné, ať vás obsluha pozná</small><input class="input" id="jName" autocomplete="given-name" maxlength="60"></label>
       <label class="field">E-mail <small>doporučujeme – bez něj se karta při výměně telefonu nebo vymazání prohlížeče ztratí</small><input class="input" id="jEmail" type="email" autocomplete="email" maxlength="120"></label>
       <label class="check" id="consentRow" hidden><input type="checkbox" id="jConsent"><span>Souhlasím, aby ${esc(b.name)} uložil můj e-mail pro věrnostní program. Souhlas můžu kdykoli odvolat. <a href="#/soukromi">Ochrana údajů</a></span></label>
       <button class="btn accent big" type="submit">Získat kartu</button>
       <div class="msg err" id="jOut" role="status"></div>
-    </form></div>`;
+    </form>
+    <p class="small muted" style="text-align:center"><button class="linkbtn" type="button" id="backToggle" aria-expanded="false" aria-controls="backBox">Už kartu mám, chci ji obnovit</button></p>
+    <div class="panel stack" style="gap:10px" id="backBox" hidden>
+      <b>Obnovit kartu</b>
+      <p class="small muted">Telefon ji mohl po delší době zapomenout (dělá to hlavně iPhone). Razítka nezmizela, kartu vám obnovíme.</p>
+      <form class="form" id="backForm" novalidate><div class="two" style="grid-template-columns:1fr auto"><input class="input" id="backEmail" type="email" autocomplete="email" placeholder="E-mail, který jste ke kartě dali" aria-label="E-mail ke kartě"><button class="btn primary" type="submit">Obnovit</button></div></form>
+      <div class="msg small" id="backOut" role="status"></div>
+      <p class="tiny muted">Nedali jste ke kartě e-mail? Řekněte obsluze své jméno, kartu vám najde.</p>
+    </div>
+    </div>`;
   setAccent($("#jc"),b.accent); setAccent($("#joinForm"),b.accent);
   const em=$("#jEmail"); em.addEventListener("input",()=>{ $("#consentRow").hidden=!em.value.trim(); });
   const recover=async(email,out)=>{
@@ -46,6 +49,7 @@ async function viewJoin(slug){
     try{ await api("recover_card",{email,slug}); out.className="msg small ok"; out.textContent="Poslali jsme vám e-mail s odkazem na kartu. Otevřete ho v tomto telefonu (zkontrolujte i spam)."; }
     catch(err){ out.className="msg small err"; out.textContent=say(err); }
   };
+  $("#backToggle").addEventListener("click",e=>{ const box=$("#backBox"); box.hidden=!box.hidden; e.currentTarget.setAttribute("aria-expanded",String(!box.hidden)); if(!box.hidden){ box.scrollIntoView({behavior:"smooth",block:"center"}); $("#backEmail").focus({preventScroll:true}); } });
   $("#backForm").addEventListener("submit",e=>{ e.preventDefault(); recover($("#backEmail").value.trim(),$("#backOut")); });
   $("#joinForm").addEventListener("submit",async e=>{
     e.preventDefault(); const out=$("#jOut"); out.textContent="";
@@ -85,13 +89,15 @@ async function showCard(token,slug,pre,fresh){
     const b=last.business, n=b.stamps_needed, left=Math.max(0,n-last.stamps);
     app.innerHTML=`<div class="wrap narrow stack" style="padding-block:22px">
       ${b.active===false?`<div class="note">Věrnostní program podniku je teď pozastavený. Vaše razítka zůstávají uložená.</div>`:""}
+      <button class="btn accent big" id="showQr" type="button">Ukázat QR obsluze</button>
       <div class="lcard" id="lc">
         <div class="eyebrow">Věrnostní karta${last.name?" · "+esc(last.name):""}</div>
         <div class="biz">${esc(b.name)}</div>
         <div class="rw"><span class="small muted">${Math.min(last.stamps,n)} z ${n}${last.stamps>n?" (+"+(last.stamps-n)+" navíc)":""}</span><span class="small"><b>${esc(b.reward_text)}</b></span></div>
         ${stampsGrid(last.stamps,n,isNewStamp?Math.min(last.stamps,n)-1:-1)}
         ${last.reward_ready?`<div class="ready"><svg width="22" height="22" viewBox="0 0 100 100" style="color:currentColor;flex:none"><use href="#mark"/></svg>Odměna čeká! Ukažte kartu obsluze.</div>`:`<p class="small muted" style="margin-top:14px">${left===1?"Poslední razítko a čeká vás":"Ještě "+left+" "+plural(left,"razítko","razítka","razítek")+" a čeká vás"} ${esc(b.reward_text.toLowerCase())}.</p>`}
-        <div class="qrbig"><div class="qr">${qrSVG(BASE+"#/r/"+token)}</div><div class="small muted">Ukažte obsluze k naskenování</div><div class="code">${short(token)}</div></div>
+        <div class="qrbig"><button class="qr qrtap" type="button" id="qrTap" aria-label="Zvětšit QR kód">${qrSVG(BASE+"#/r/"+token)}</button><div class="small muted">Ukažte obsluze k naskenování · ťuknutím zvětšíte</div><div class="code">${short(token)}</div></div>
+        ${b.rules_text?`<p class="small muted" style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--line2)"><b>Pravidla:</b> ${esc(b.rules_text)}</p>`:""}
       </div>
       ${last.has_email?"":`<div class="panel stack" style="gap:10px"><b>Pojistěte si kartu</b><p class="small muted">Přidejte e-mail a kartu i s razítky obnovíte na novém telefonu nebo po smazání prohlížeče.</p>
         <form class="form" id="emForm" novalidate><input class="input" id="emIn" type="email" autocomplete="email" placeholder="vas@email.cz" maxlength="120">
@@ -104,10 +110,12 @@ async function showCard(token,slug,pre,fresh){
         <div class="msg small" id="copyOut" role="status"></div>
         <p class="small muted">Celkem ${visits(last.total_stamps)}${last.rewards_redeemed?" · vydané odměny: "+last.rewards_redeemed:""} · karta od ${fmtD(last.created_at)}</p>
       </div>
-      <button class="btn danger" id="delBtn" type="button">Smazat kartu a moje údaje</button>
       <p class="tiny muted" style="text-align:center"><a href="#/soukromi">Ochrana osobních údajů</a> · <a href="cookies.html">Cookies</a> · <a href="#/moje">Moje karty</a></p>
+      <p class="tiny muted" style="text-align:center"><button class="linkbtn" id="delBtn" type="button">Smazat kartu a moje údaje</button></p>
       </div>`;
-    setAccent($("#lc"),b.accent);
+    setAccent($("#lc"),b.accent); setAccent($("#showQr"),b.accent);
+    const bigQr=()=>showQrFull(BASE+"#/r/"+token,b.name,short(token));
+    $("#showQr").addEventListener("click",bigQr); $("#qrTap").addEventListener("click",bigQr);
     $("#copyLink").addEventListener("click",()=>copy(link,$("#copyOut")));
     const ef=$("#emForm");
     if(ef) ef.addEventListener("submit",async e=>{
@@ -135,12 +143,33 @@ async function showCard(token,slug,pre,fresh){
       if(!n){ cardStore.drop(slug); return; }
       const stamped=n.total_stamps>last.total_stamps, redeemed=n.rewards_redeemed>last.rewards_redeemed;
       if(stamped||redeemed||n.stamps!==last.stamps||n.has_email!==last.has_email){ last=n; render(stamped); }
+      if(stamped||redeemed) closeQrFull();
       if(stamped) thanks(n,token);
       else if(redeemed){ openSheet(`<h2 id="sheetTitle" style="font-size:1.6rem">Odměna je vaše!</h2><p class="muted">Dobrou chuť. Sbírání začíná znovu.</p><button class="btn primary" type="button" id="okBtn">Díky</button>`); $("#okBtn").addEventListener("click",closeSheet); }
     }catch(e){}
   };
-  const iv=setInterval(tick,4000); onLeave(()=>clearInterval(iv));
+  let fastUntil=Date.now()+120000, timer=0, gone=false;
+  const loop=()=>{ if(gone) return; timer=setTimeout(async()=>{ await tick(); loop(); },Date.now()<fastUntil?4000:30000); };
+  const wake=()=>{ if(document.hidden||gone) return; fastUntil=Date.now()+120000; clearTimeout(timer); tick().then(loop); };
+  document.addEventListener("visibilitychange",wake);
+  loop(); onLeave(()=>{ gone=true; clearTimeout(timer); document.removeEventListener("visibilitychange",wake); closeQrFull(); });
 }
+/* QR across the whole white screen, so staff can scan it at the counter without scrolling */
+function showQrFull(text,name,code){
+  closeQrFull();
+  const d=document.createElement("div"); d.id="qrFull"; d.className="qrfull"; d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); d.setAttribute("aria-label","QR kód karty");
+  d.innerHTML=`<div class="qrfull-name">${esc(name)}</div><div class="qrfull-qr">${qrSVG(text)}</div><div class="qrfull-code">${esc(code)}</div><button class="btn big" type="button" id="qrFullClose">Zavřít</button>`;
+  document.body.appendChild(d); document.body.classList.add("noscroll");
+  d.addEventListener("click",closeQrFull);
+  $("#qrFullClose").focus();
+  try{ if(navigator.wakeLock) navigator.wakeLock.request("screen").then(l=>{ d._lock=l; }).catch(()=>{}); }catch(e){}
+}
+function closeQrFull(){
+  const d=document.getElementById("qrFull"); if(!d) return;
+  try{ if(d._lock) d._lock.release(); }catch(e){}
+  d.remove(); document.body.classList.remove("noscroll");
+}
+addEventListener("keydown",e=>{ if(e.key==="Escape") closeQrFull(); });
 /* "Add to home screen" from a card page must open that card, also on iPhone where the home-screen app has its own storage */
 function setCardManifest(name,url){
   try{

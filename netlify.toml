@@ -1,0 +1,39 @@
+# Štempl na Netlify: statický web bez build kroku, nasazuje se sám po každé změně v repozitáři.
+[build]
+  publish = "."
+
+# Bezpečnostní hlavičky (audit, sekce 3)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://tmhzusgvgujrbihzusyt.supabase.co; manifest-src 'self' data:; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://buy.stripe.com https://billing.stripe.com"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(self), microphone=(), geolocation=()"
+
+# Aplikace a service worker se nesmí držet v mezipaměti prohlížeče, jinak lidé uvidí starou verzi.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# Soubory, které na web nepatří
+[[redirects]]
+  from = "/supabase/*"
+  to = "/"
+  status = 404
+  force = true
+[[redirects]]
+  from = "/stempl-nova-verze.zip"
+  to = "/"
+  status = 404
+  force = true

@@ -10,16 +10,16 @@ function demoData(){
   const cards=names.map((n,i)=>{
     const total=i%3===2?1:2+((i*5+3)%15), red=Math.max(0,Math.floor(total/N)-(i%6===0?1:0)), stamps=total-red*N, tok=hex(i+1);
     return {id:"d"+i,token:tok,code:tok.slice(0,8).toUpperCase(),name:n,email:i%3===0?slugify(n)+"@priklad.cz":null,stamps,total_stamps:total,rewards_redeemed:red,reward_ready:stamps>=N,
-      created_at:iso(now-(3+i*5)*day),last_stamp_at:iso(now-((i*3)%19)*day-36e5*(1+i%7))};
+      created_at:iso(now-(3+i*5)*day),last_stamp_at:iso(now-((i*7)%47)*day-36e5*(1+i%7))};
   }).sort((a,b)=>b.total_stamps-a.total_stamps);
   const pattern=[3,5,2,6,7,9,2,4,5,3,6,8,10,4];
   const daily=pattern.map((s,i)=>({day:iso(now-(13-i)*day).slice(0,10),stamps:s}));
   const kinds=["stamp","stamp","review_click","stamp","redeem","stamp","join","stamp"];
   const recent=kinds.map((k,i)=>({kind:k,name:cards[(i*5+2)%cards.length].name,at:iso(now-(i*47+12)*6e4)}));
-  const business={name:"Kavárna Ukázka",slug:"ukazka",accent:"#b45309",category:"kavarna",reward_text:"Káva zdarma",stamps_needed:N,google_review_url:"https://g.page/r/ukazka/review",has_staff_code:true,owner_email:"majitel@priklad.cz",weekly_summary:true,active:true};
+  const business={name:"Kavárna Ukázka",slug:"ukazka",accent:"#b45309",category:"kavarna",reward_text:"Káva zdarma",stamps_needed:N,google_review_url:"https://g.page/r/ukazka/review",has_staff_code:true,owner_email:"majitel@priklad.cz",weekly_summary:true,active:true,daily_stamp_limit:2,welcome_stamp:true,rules_text:"Razítko za každý nápoj. Razítka nepropadají."};
   const billing={id:"demo",status:"active",plan:"year",active:true,in_trial:false,comp:false,paid_until:iso(now+212*day),cancel_at_period_end:false,billing_email:null};
   const stats={business,billing,customers:cards.length,returning:cards.filter(c=>c.total_stamps>=2).length,new_30d:cards.filter(c=>now-new Date(c.created_at)<30*day).length,
-    stamps_30d:131,redeemed_total:cards.reduce((a,c)=>a+c.rewards_redeemed,0),review_clicks_30d:17,daily,recent};
+    stamps_30d:131,idle_30d:cards.filter(c=>now-new Date(c.last_stamp_at)>30*day).length,redeemed_total:cards.reduce((a,c)=>a+c.rewards_redeemed,0),review_clicks_30d:17,daily,recent};
   return demo.data={cards,stats};
 }
 async function demoRpc(fn,a){
@@ -58,7 +58,7 @@ function viewLanding(){
       <div class="eyebrow">Pro kavárny, bistra, restaurace a salony</div>
       <h1 style="margin-top:16px">Zákazníci,<br>kteří se <em>vracejí.</em></h1>
       <p class="lede">Věrnostní karta přímo v mobilu a víc recenzí na Googlu. QR kód na pultu, zákazník nic nestahuje a obsluha dá razítko obyčejným fotoaparátem v telefonu.</p>
-      <div class="row-btns"><a class="btn light" href="#/registrace">Vyzkoušet 14 dní zdarma</a><a class="btn onink" href="#/k/ukazka">Ukázka karty</a></div>
+      <div class="row-btns"><a class="btn light" href="#/registrace">Vyzkoušet 30 dní zdarma</a><a class="btn onink" href="#/k/ukazka">Ukázka karty</a></div>
       <p class="fine">Bez platební karty. Po zkušební době ${kc(PRICE.month)} měsíčně.</p>
       <ul class="trust">${li("Bez stahování aplikace","check")}${li("Stačí telefon obsluhy","check")}${li("Bez reklamních cookies","check")}</ul>
     </div>
@@ -84,7 +84,7 @@ function viewLanding(){
     <div class="bframe" aria-hidden="true">
       <div class="bar"><i></i><i></i><i></i><span>Kavárna Ukázka · ukázková data</span></div>
       <div class="in">
-        <div class="tiles"><div class="tile"><b>${D.customers}</b><span>zákazníků s kartou</span></div><div class="tile"><b>${D.returning}</b><span>se vrátilo</span></div><div class="tile"><b>${D.review_clicks_30d}</b><span>otevřelo recenzi</span></div></div>
+        <div class="tiles"><div class="tile"><b>${D.customers}</b><span>zákazníků s kartou</span></div><div class="tile"><b>${D.returning}</b><span>se vrátilo</span></div><div class="tile"><b>${D.review_clicks_30d}</b><span>otevřelo formulář recenze</span></div></div>
         <div><b class="small">Razítka za posledních 14 dní</b><div style="margin-top:10px">${barChart(D.daily)}</div></div>
       </div>
     </div>
@@ -118,8 +118,19 @@ function viewLanding(){
     </div>
   </div></section>
 
+  <section class="section" id="kdo"><div class="wrap"><div class="who">
+    <div class="who-av" aria-hidden="true">${esc(PROVIDER.name.split(" ").map(w=>w[0]).join(""))}</div>
+    <div class="stack" style="gap:10px">
+      <div class="eyebrow">Kdo za tím stojí</div>
+      <h2 style="font-size:clamp(1.6rem,3.4vw,2.2rem)">${esc(PROVIDER.name)}, ${esc(PROVIDER.city)}</h2>
+      <p>Štempl jsem postavil sám a starám se o něj osobně. Jsem z Brna, takže za vámi přijdu, kartu nastavím, přinesu stojánek s QR kódem a ukážu obsluze, jak dát razítko. Když něco nefunguje, píšete přímo mně, ne na zákaznickou linku.</p>
+      <p class="small muted">${PROVIDER.phone?`Telefon <a href="tel:${esc(PROVIDER.phone.replace(/\s+/g,""))}">${esc(PROVIDER.phone)}</a> · `:""}E-mail <a href="mailto:${esc(PROVIDER.email)}">${esc(PROVIDER.email)}</a>${PROVIDER.ico?" · IČO "+esc(PROVIDER.ico):""}</p>
+      <div class="row-btns"><a class="btn primary" href="#/" data-jump="poptavka">Domluvit nastavení</a></div>
+    </div>
+  </div></div></section>
+
   <section class="section" id="cena"><div class="wrap">
-    <div class="shead"><div class="eyebrow">Cena</div><h2>Jedna cena za podnik. Prvních 14 dní zdarma.</h2></div>
+    <div class="shead"><div class="eyebrow">Cena</div><h2>Jedna cena za podnik. Prvních 30 dní zdarma.</h2></div>
     <div class="plans">
       <div class="plan"><div class="eyebrow">Měsíčně</div><div class="big">${kc(PRICE.month)}</div><p class="muted">za podnik a měsíc, zrušíte kdykoli</p><a class="btn" href="#/registrace">Začít zdarma</a></div>
       <div class="plan hi"><div class="badge">2 měsíce zdarma</div><div class="eyebrow">Ročně</div><div class="big">${kc(PRICE.year)}</div><p class="muted">za podnik a rok (vychází ${kc(Math.round(PRICE.year/12))} měsíčně)</p><a class="btn light" href="#/registrace">Začít zdarma</a></div>
@@ -131,11 +142,14 @@ function viewLanding(){
     <div class="shead"><div class="eyebrow">Časté otázky</div><h2>Na co se majitelé ptají</h2></div>
     <div class="faq">
       <details><summary>Musí si zákazník stahovat aplikaci?</summary><p>Ne. Naskenuje QR kód fotoaparátem a karta se mu otevře v prohlížeči. Bez registrace a bez hesla, jméno a e-mail jsou nepovinné.</p></details>
-      <details><summary>Co potřebuje obsluha?</summary><p>Jen vlastní telefon. Přihlásí se kódem obsluhy, naskenuje QR na kartě zákazníka a ťukne na razítko. Žádná čtečka ani propojení s pokladnou.</p></details>
+      <details><summary>Co potřebuje obsluha?</summary><p>Jen vlastní telefon, iPhone i Android. Přihlásí se kódem obsluhy, naskenuje QR na kartě zákazníka a ťukne na razítko. Žádný tablet, čtečka ani propojení s pokladnou.</p></details>
       <details><summary>Co když zákazník změní telefon?</summary><p>Razítka jsou uložená u nás, ne v telefonu. Kdo si ke kartě uložil e-mail, obnoví ji odkazem. Ostatním kartu najde obsluha podle jména nebo kódu.</p></details>
       <details><summary>Nevadí Googlu, že prosíte o recenze?</summary><p>Razítko je vždy za návštěvu, ne za recenzi, a o hodnocení prosíme všechny zákazníky stejně. Odměna za recenzi by pravidla porušovala, proto ji Štempl neumí.</p></details>
-      <details><summary>Co se stane po 14 dnech?</summary><p>Nic se neúčtuje samo. Když nezaplatíte, jen se pozastaví přidávání razítek a nových karet. Data zůstanou uložená a po zaplacení pokračujete tam, kde jste skončili.</p></details>
+      <details><summary>Co se stane po 30 dnech?</summary><p>Zkušební doba je 30 dní, aby se stihla naplnit první karta a viděli jste první vracející se zákazníky. Pak se nic neúčtuje samo. Když nezaplatíte, jen se pozastaví přidávání razítek a nových karet. Data zůstanou uložená a po zaplacení pokračujete tam, kde jste skončili.</p></details>
+      <details><summary>Už dáváme papírové kartičky. Co s nimi?</summary><p>Rozdělané kartičky zákazníkům převedete. Obsluha u karty ťukne na Převést z papírové kartičky, zadá počet razítek a zákazník o nic nepřijde. Převod jde u každé karty jen jednou a vidíte ho v historii.</p></details>
+      <details><summary>Jak zabráníte falešným razítkům?</summary><p>Razítko přidá jen přihlášená obsluha a každá karta má denní limit razítek, který si nastavíte (výchozí jsou 2 za den). Po opakovaných chybných přihlášeních se přístup na čas zamkne.</p></details>
       <details><summary>Můžu předplatné kdykoli zrušit?</summary><p>Ano, v přehledu podniku na pár kliknutí. Služba pak běží do konce zaplaceného období a dál se nic neúčtuje.</p></details>
+      <details><summary>Co když se Štemplem skončím?</summary><p>Seznam zákazníků si kdykoli stáhnete do Excelu, data jsou vaše. Po zrušení služby je na požádání smažeme.</p></details>
       <details><summary>Jak je to s osobními údaji zákazníků?</summary><p>Ukládáme jen to nejnutnější: kód karty, razítka a časy návštěv. E-mail jen se souhlasem zákazníka, kartu si může kdykoli sám smazat. Zpracovatelská smlouva je součástí <a href="#/podminky">obchodních podmínek</a>.</p></details>
     </div>
   </div></section>
@@ -144,7 +158,7 @@ function viewLanding(){
     <div class="stack">
       <h2>Začněte ještě dnes, nebo to nastavíme s vámi.</h2>
       <p>Registrace zabere pár minut a plakátek s QR kódem si hned stáhnete. Jste z Brna a okolí? Přijdeme, kartu nastavíme a obsluze ukážeme, jak to funguje.</p>
-      <div class="row-btns"><a class="btn light" href="#/registrace">Vyzkoušet 14 dní zdarma</a><a class="btn onink" href="#/demo">Ukázka přehledu</a></div>
+      <div class="row-btns"><a class="btn light" href="#/registrace">Vyzkoušet 30 dní zdarma</a><a class="btn onink" href="#/demo">Ukázka přehledu</a></div>
     </div>
     <form class="form panel" id="leadForm" novalidate>
       <b>Chci pomoct s nastavením</b>
@@ -152,6 +166,7 @@ function viewLanding(){
       <label class="field">Podnik<input class="input" id="lBiz" placeholder="např. Kavárna U Mostu" required></label>
       <label class="field">Telefon nebo e-mail<input class="input" id="lContact" autocomplete="email" required></label>
       <label class="field">Zpráva <small>nepovinné</small><textarea class="input" id="lMsg" rows="3"></textarea></label>
+      <div class="hp" aria-hidden="true"><label>Web<input id="lWeb" tabindex="-1" autocomplete="off"></label></div>
       <button class="btn primary" type="submit">Odeslat poptávku</button>
       <div class="msg" id="lOut" role="status"></div>
     </form>
@@ -164,7 +179,7 @@ function viewLanding(){
     e.preventDefault(); const out=$("#lOut"); out.className="msg";
     const v={p_name:$("#lName").value.trim(),p_business:$("#lBiz").value.trim(),p_contact:$("#lContact").value.trim(),p_message:$("#lMsg").value.trim()||null};
     if(v.p_name.length<2||v.p_business.length<2||v.p_contact.length<5){ out.className="msg err"; out.textContent="Vyplňte jméno, podnik a kontakt."; return; }
-    try{ await rpc("submit_lead",v); out.className="msg ok"; out.textContent="Děkujeme, ozveme se do druhého dne."; e.target.reset(); }
+    try{ await api("lead",{name:v.p_name,business:v.p_business,contact:v.p_contact,message:v.p_message||"",website:$("#lWeb").value}); out.className="msg ok"; out.textContent="Děkujeme, ozveme se do druhého dne."; e.target.reset(); }
     catch(err){ out.className="msg err"; out.textContent=say(err); }
   });
 }

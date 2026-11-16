@@ -71,13 +71,6 @@ code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85em;backgroun
   <p>Provozovatel: Oliver Hynek, Brno, e-mail <a href="mailto:stemplapp@gmail.com">stemplapp@gmail.com</a>. Více o osobních údajích najdete v <a href="./#/soukromi">zásadách ochrany osobních údajů</a>.</p>
   <p style="margin-top:30px"><a class="btn" href="./#/">Zpět do aplikace</a></p>
 </div>
-<script>
-document.getElementById("clear").addEventListener("click",async function(){
-  try{ Object.keys(localStorage).filter(function(k){return k.indexOf("stempl.")===0}).forEach(function(k){localStorage.removeItem(k)}); }catch(e){}
-  try{ if(window.caches){ var ks=await caches.keys(); await Promise.all(ks.map(function(k){return caches.delete(k)})); } }catch(e){}
-  try{ if(navigator.serviceWorker){ var rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(function(r){return r.unregister()})); } }catch(e){}
-  document.getElementById("out").textContent="Hotovo, data Štemplu v tomto prohlížeči jsou smazaná.";
-});
-</script>
+<script src="cookies.js"></script>
 </body>
 </html>

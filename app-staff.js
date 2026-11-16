@@ -21,12 +21,23 @@ function loginView(title,next,opts){
 }
 function logout(){ sess.clear(); route(); }
 function authFail(e){ if(e&&e.message==="bad_code"){ sess.clear(); route(); return true; } return false; }
+/* short confirmation tone: high for success, low for an error */
+function beep(ok){
+  try{
+    const C=window.AudioContext||window.webkitAudioContext; if(!C) return;
+    const ctx=beep.ctx||(beep.ctx=new C()), o=ctx.createOscillator(), g=ctx.createGain(), t=ctx.currentTime;
+    o.type="sine"; o.frequency.value=ok?880:220; g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.25,t+.02); g.gain.exponentialRampToValueAtTime(.0001,t+(ok?.18:.4));
+    o.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t+(ok?.2:.42));
+  }catch(e){}
+}
 
 /* card panel for staff: stamp, reward, undo, visits */
 function staffCardPanel(host,s,cur,opts){
   opts=opts||{};
+  let autoNext=0;
   const draw=()=>{
-    const b=cur.business, n=b.stamps_needed;
+    clearTimeout(autoNext);
+    const b=cur.business, n=b.stamps_needed, multi=(b.daily_stamp_limit||2)>=2;
     const canUndo=cur.last_stamp_at&&(Date.now()-new Date(cur.last_stamp_at).getTime()<10*60*1000);
     host.innerHTML=`<div class="result stack" id="rc" style="gap:14px">
       ${b.active===false?`<div class="note bad">${ERR.subscription_inactive}</div>`:""}
@@ -35,16 +46,32 @@ function staffCardPanel(host,s,cur,opts){
       <div class="kv"><div><b>${cur.total_stamps}</b><span>návštěv celkem</span></div><div><b>${Math.min(cur.stamps,n)}/${n}</b><span>na kartě</span></div><div><b>${cur.rewards_redeemed}</b><span>vydaných odměn</span></div></div>
       <p class="small muted">Karta od ${fmtD(cur.created_at)} · poslední návštěva ${cur.last_stamp_at?fmtDT(cur.last_stamp_at):"zatím žádná"}</p>
       ${cur.reward_ready?`<button class="btn accent big" id="redeemBtn" type="button">Vydat odměnu: ${esc(b.reward_text)}</button>`:""}
-      <div style="display:grid;grid-template-columns:1fr auto;gap:10px">
+      <div style="display:grid;grid-template-columns:1fr ${multi?"auto":""};gap:10px">
         <button class="btn ${cur.reward_ready?"":"accent"} big" id="stampBtn" type="button"${b.active===false?" disabled":""}>Přidat razítko</button>
-        <button class="btn big" id="stamp2Btn" type="button" style="width:auto;padding:0 18px"${b.active===false?" disabled":""} aria-label="Přidat 2 razítka">+2</button>
+        ${multi?`<button class="btn big" id="stamp2Btn" type="button" style="width:auto;padding:0 18px"${b.active===false?" disabled":""} aria-label="Přidat 2 razítka">+2</button>`:""}
       </div>
+      ${cur.can_import&&b.active!==false?`<button class="btn ghost" id="importBtn" type="button">Převést z papírové kartičky</button>`:""}
       ${canUndo?`<button class="btn ghost" id="undoBtn" type="button">Vrátit poslední přidání</button>`:""}
       ${opts.next?`<button class="btn ghost" id="nextBtn" type="button">Další zákazník</button>`:""}
       <div class="msg err" id="rcOut" role="status"></div></div>`;
     setAccent($("#rc",host),b.accent);
     $("#stampBtn",host).addEventListener("click",()=>act("stamp_card"));
-    $("#stamp2Btn",host).addEventListener("click",()=>act("stamp_card",2));
+    if(multi) $("#stamp2Btn",host).addEventListener("click",()=>act("stamp_card",2));
+    const imp=$("#importBtn",host);
+    if(imp) imp.addEventListener("click",()=>{
+      openSheet(`<h2 id="sheetTitle" style="font-size:1.6rem">Převést z papírové kartičky</h2>
+        <p class="muted">Kolik razítek má zákazník na papírové kartičce? Připíšeme je na tuhle kartu. Jde to jen jednou a majitel převod uvidí v historii. Papírovou kartičku si pak vezměte.</p>
+        <form class="form" id="impForm" novalidate><label class="field">Počet razítek z papíru<input class="input" id="impN" type="number" inputmode="numeric" min="1" max="${n-1}" required></label>
+        <button class="btn primary big" type="submit">Převést razítka</button><button class="btn ghost" type="button" id="impNo">Zrušit</button><div class="msg err" id="impOut" role="status"></div></form>`);
+      $("#impNo").addEventListener("click",closeSheet); $("#impN").focus();
+      $("#impForm").addEventListener("submit",async e=>{
+        e.preventDefault(); const k=parseInt($("#impN").value,10);
+        if(!(k>=1&&k<=n-1)){ $("#impOut").textContent=ERR.bad_import; return; }
+        e.target.querySelector("button[type=submit]").disabled=true;
+        try{ cur=await rpc("import_paper_stamps",{p_slug:s.slug,p_code:s.code,p_token:cur.token,p_count:k}); closeSheet(); beep(true); draw(); $("#rcOut",host).className="msg ok"; $("#rcOut",host).textContent=k+" "+plural(k,"razítko převedeno","razítka převedena","razítek převedeno")+" z papírové kartičky."; }
+        catch(err){ if(authFail(err)){ closeSheet(); return; } e.target.querySelector("button[type=submit]").disabled=false; $("#impOut").textContent=say(err); }
+      });
+    });
     if(cur.reward_ready) $("#redeemBtn",host).addEventListener("click",()=>act("redeem_reward"));
     if(canUndo) $("#undoBtn",host).addEventListener("click",()=>act("undo_stamp"));
     if(opts.next) $("#nextBtn",host).addEventListener("click",opts.next);
@@ -59,10 +86,16 @@ function staffCardPanel(host,s,cur,opts){
         <div class="row-btns" style="margin-top:12px"><button class="btn ghost" type="button" id="backCard">Zpět na kartu</button>${opts.next?`<button class="btn primary" type="button" id="nextAfter">Další zákazník</button>`:""}</div>
         ${opts.next?"":`<p class="small muted" style="margin-top:10px">Dalšího zákazníka naskenujte znovu fotoaparátem.</p>`}`;
       if(navigator.vibrate) navigator.vibrate([30,40,30]);
+      beep(true);
       $("#backCard",host).addEventListener("click",draw);
-      if(opts.next) $("#nextAfter",host).addEventListener("click",opts.next);
-    }catch(e){ if(authFail(e)) return; draw(); $("#rcOut",host).textContent=say(e); }
+      if(opts.next){
+        $("#nextAfter",host).addEventListener("click",()=>{ clearTimeout(autoNext); opts.next(); });
+        /* back to the scanner by itself, so staff does not have to tap between customers */
+        if(fn!=="undo_stamp") autoNext=setTimeout(()=>{ if($("#nextAfter",host)) opts.next(); },3000);
+      }
+    }catch(e){ if(authFail(e)) return; draw(); $("#rcOut",host).textContent=say(e); if(navigator.vibrate) navigator.vibrate(200); beep(false); }
   }
+  onLeave(()=>clearTimeout(autoNext));
   draw();
 }
 
@@ -103,12 +136,19 @@ async function viewScanTarget(token){
   staffCardPanel($("#res"),s,c);
 }
 
+/* jsQR is only needed where the browser has no BarcodeDetector, so it is loaded on first use */
+let jsqrLoading=null;
+function loadJsQR(){
+  if(window.jsQR) return Promise.resolve();
+  return jsqrLoading||(jsqrLoading=new Promise((ok,no)=>{ const s=document.createElement("script"); s.src="jsqr.js"; s.onload=()=>window.jsQR?ok():no(new Error("jsqr")); s.onerror=()=>{ jsqrLoading=null; no(new Error("jsqr")); }; document.head.appendChild(s); }));
+}
+
 /* ================= STAFF ================= */
 function viewStaff(){
   const s=sess.get();
   if(!s) return loginView("Obsluha",viewStaff);
   document.title="Obsluha · "+s.name;
-  const hasDet=("BarcodeDetector" in window);
+  const hasDet=("BarcodeDetector" in window), hasCam=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
   app.innerHTML=`<div class="wrap narrow stack" style="padding-block:20px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="eyebrow">Obsluha${s.role==="owner"?" · majitel":""}</div><h1 style="font-size:1.8rem;margin-top:4px">${esc(s.name)}</h1></div><button class="btn ghost sm" id="out" type="button">Odhlásit</button></div>
     <div id="scanArea"></div>
@@ -124,30 +164,46 @@ function viewStaff(){
   </div>`;
   if(!demo.on) setManifest("Štempl – obsluha","Štempl",BASE+"#/obsluha");
   $("#out").addEventListener("click",logout);
-  let stream=null, raf=0, busy=false;
+  let stream=null, raf=0, busy=false, usedCam=false, skipTok="", skipUntil=0;
   const stop=()=>{ cancelAnimationFrame(raf); if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } };
   onLeave(stop);
   const idle=()=>{
     $("#scanArea").innerHTML=`<div class="panel stack" style="gap:14px">
       <div class="howscan"><svg aria-hidden="true"><use href="#cam"/></svg><div><b>Naskenujte QR kód zákazníka fotoaparátem telefonu</b><p class="small muted" style="margin-top:4px">Otevřete obyčejný fotoaparát, namiřte na QR na kartě zákazníka a ťukněte na odkaz, který se objeví. Karta se otevře tady a přidáte razítko.</p></div></div>
-      ${hasDet?`<button class="btn primary big" id="camBtn" type="button">Nebo skenovat přímo tady</button>`:""}
+      ${hasCam?`<button class="btn primary big" id="camBtn" type="button">Nebo skenovat přímo tady</button>`:""}
       <p class="tiny muted">Tip: přihlaste se v prohlížeči, který fotoaparát otevírá (na iPhonu Safari). Přihlášení vydrží, dokud se neodhlásíte.</p></div>`;
-    if(hasDet) $("#camBtn").addEventListener("click",startCam);
+    if(hasCam) $("#camBtn").addEventListener("click",startCam);
   };
   async function startCam(){
     $("#stOut").textContent="";
     try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false}); }
     catch(e){ $("#stOut").textContent="Kamera není dostupná. Použijte fotoaparát telefonu nebo zadejte kód karty."; return; }
     $("#scanArea").innerHTML=`<div class="scan"><video id="vid" playsinline muted></video><div class="frame"></div><div class="hint">Namiřte na QR kód karty</div></div><button class="btn ghost" id="camStop" type="button" style="margin-top:10px;width:100%">Zavřít kameru</button>`;
-    $("#camStop").addEventListener("click",()=>{ stop(); idle(); });
+    usedCam=true;
+    $("#camStop").addEventListener("click",()=>{ usedCam=false; stop(); idle(); });
     const v=$("#vid"); v.srcObject=stream; await v.play().catch(()=>{});
-    const det=new BarcodeDetector({formats:["qr_code"]});
+    /* Chrome and Android have a built-in detector; iPhone (Safari) does not, so there we decode frames with the bundled jsQR library */
+    let det=null; if(hasDet){ try{ det=new BarcodeDetector({formats:["qr_code"]}); }catch(e){} }
+    if(!det){
+      try{ await loadJsQR(); }
+      catch(e){ stop(); idle(); $("#stOut").textContent="Skener se nepodařilo načíst. Použijte fotoaparát telefonu nebo zadejte kód karty."; return; }
+    }
+    const cv=document.createElement("canvas"), cx=cv.getContext("2d",{willReadFrequently:true}); let lastTry=0;
+    const viaJsQR=()=>{
+      const now=performance.now(); if(now-lastTry<140) return null; lastTry=now;   // about 7 attempts a second is plenty and keeps the phone cool
+      const w=v.videoWidth, h=v.videoHeight; if(!w||!h) return null;
+      const k=Math.min(1,640/Math.max(w,h)); cv.width=Math.round(w*k); cv.height=Math.round(h*k);
+      cx.drawImage(v,0,0,cv.width,cv.height);
+      const img=cx.getImageData(0,0,cv.width,cv.height), r=window.jsQR(img.data,cv.width,cv.height,{inversionAttempts:"dontInvert"});
+      return r?r.data:null;
+    };
     const loop=async()=>{
       if(!stream) return;
       if(!busy&&v.readyState>=2){
-        let txt=null; try{ const r=await det.detect(v); if(r[0]) txt=r[0].rawValue; }catch(e){}
+        let txt=null; try{ if(det){ const r=await det.detect(v); if(r[0]) txt=r[0].rawValue; } else txt=viaJsQR(); }catch(e){}
         const m=txt&&String(txt).toLowerCase().match(/[0-9a-f]{32}/);
-        if(m){ busy=true; if(navigator.vibrate) navigator.vibrate(40); stop(); await find({p_token:m[0]}); return; }
+        /* the card that was just handled is ignored for a few seconds, otherwise it would reopen while the customer still holds the phone up */
+        if(m&&!(m[0]===skipTok&&Date.now()<skipUntil)){ busy=true; skipTok=m[0]; if(navigator.vibrate) navigator.vibrate(40); beep(true); stop(); await find({p_token:m[0]}); return; }
       }
       raf=requestAnimationFrame(loop);
     };
@@ -167,7 +223,7 @@ function viewStaff(){
       $("#res").scrollIntoView({behavior:"smooth",block:"start"});
     }catch(e){ if(authFail(e)) return; $("#stOut").textContent=say(e); busy=false; idle(); }
   }
-  function reset(){ busy=false; $("#res").innerHTML=""; $("#found").innerHTML=""; $("#mCode").value=""; idle(); window.scrollTo(0,0); }
+  function reset(){ busy=false; skipUntil=Date.now()+8000; $("#res").innerHTML=""; $("#found").innerHTML=""; $("#mCode").value=""; idle(); window.scrollTo(0,0); if(usedCam) startCam(); }
   $("#manual").addEventListener("submit",async e=>{
     e.preventDefault(); const v=$("#mCode").value.trim(); if(!v) return; stop(); $("#stOut").textContent="";
     const m=v.toLowerCase().match(/[0-9a-f]{32}/); if(m) return find({p_token:m[0]},true);

@@ -41,10 +41,11 @@ async function viewOwner(tab){
         <div class="tile"><b>${st.new_30d}</b><span>nových za 30 dní</span></div>
         <div class="tile"><b>${st.stamps_30d}</b><span>razítek za 30 dní</span></div>
         <div class="tile"><b>${st.redeemed_total}</b><span>vydaných odměn</span></div>
-        <div class="tile"><b>${st.review_clicks_30d}</b><span>otevřelo recenzi na Googlu (30 dní)</span></div>
+        ${st.idle_30d!=null?`<div class="tile"><b>${st.idle_30d}</b><span>nebylo 30 dní <button class="linkbtn" type="button" id="idleGo">zobrazit</button></span></div>`:""}
+        <div class="tile"><b>${st.review_clicks_30d}</b><span>otevřelo formulář recenze na Googlu (30 dní)</span></div>
       </div>
       ${todo.every(t=>t[1])?"":`<div class="panel stack" style="gap:8px"><b>První kroky</b><ul class="todo">${todo.map(t=>`<li class="${t[1]?"ok":""}"><span class="dot"></span><span class="t">${t[0]}</span>${t[1]?"":`<button class="btn sm" type="button" data-go="${t[2]}">${t[3]}</button>`}</li>`).join("")}</ul></div>`}
-      ${b.google_review_url?"":`<div class="note">Chybí odkaz na recenze na Googlu, takže zákazníky zatím o recenzi neprosíme. Doplňte ho v <a href="${P}/set">Nastavení</a>.</div>`}
+      ${b.google_review_url?"":`<div class="note bad">Chybí odkaz na recenze na Googlu, takže zákazníky zatím o recenzi neprosíme. Doplňte ho v <a href="${P}/set">Nastavení</a>.</div>`}
       <div class="panel"><b>Razítka za posledních 14 dní</b><div id="chart" style="margin-top:12px"></div></div>
       <div class="panel"><b>Poslední aktivita</b><ul class="feed" id="feed" style="margin-top:8px"></ul></div>
     </div>
@@ -52,6 +53,7 @@ async function viewOwner(tab){
       <div class="panel stack" style="gap:12px">
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between"><b>Zákazníci (${st.customers})</b><button class="btn ghost sm" id="csvBtn" type="button">Stáhnout do Excelu (CSV)</button></div>
         <input class="input" id="cq" type="search" placeholder="Hledat jméno, e-mail nebo kód karty" aria-label="Hledat zákazníka">
+        <div class="chips" role="group" aria-label="Filtr">${[["0","Všichni"],["30","Nebyl 30 dní"],["60","Nebyl 60 dní"]].map(([k,v])=>`<button type="button" data-idle="${k}" aria-pressed="${k==="0"}">${v}</button>`).join("")}</div>
         <ul class="clist" id="clist"><li class="muted small" style="padding:12px 4px">Načítám…</li></ul>
         <div class="msg err" id="cOut"></div>
       </div>
@@ -59,13 +61,14 @@ async function viewOwner(tab){
     <div id="t-qr" class="stack" hidden>
       <div class="panel stack"><b>Plakátek s QR kódem</b><p class="small muted">Vytiskněte a dejte na pult, ke kase nebo na zrcadlo. QR vede na: <span class="mono" style="word-break:break-all">${esc(cardUrl)}</span></p>
         <canvas id="poster" width="1240" height="1748" class="poster" aria-label="Plakátek s QR kódem"></canvas>
-        <div class="row-btns"><a class="btn primary" id="dl" download="stempl-${esc(b.slug)}.png" href="#">Stáhnout plakátek (PNG)</a><a class="btn ghost" href="#/k/${esc(b.slug)}">Otevřít kartu zákazníka</a><button class="btn ghost" type="button" id="copyCard">Kopírovat odkaz na kartu</button></div><div class="msg small" id="copyCardOut" role="status"></div></div>
+        <div class="row-btns"><button class="btn primary" type="button" data-print="A4">Tisk / PDF – plakátek A4</button><button class="btn" type="button" data-print="A5">Plakátek A5</button><button class="btn" type="button" data-print="A6">Stojánek na stůl A6</button><a class="btn ghost" id="dl" download="stempl-${esc(b.slug)}.png" href="#">Stáhnout obrázek (PNG)</a><a class="btn ghost" href="#/k/${esc(b.slug)}">Otevřít kartu zákazníka</a><button class="btn ghost" type="button" id="copyCard">Kopírovat odkaz na kartu</button></div><div class="msg small" id="copyCardOut" role="status"></div>
+        <p class="small muted">Tlačítka tisku otevřou tiskové okno ve správné velikosti. Chcete soubor pro tiskárnu nebo copy centrum? V okně zvolte <b>Uložit jako PDF</b>. Tiskněte bez okrajů nebo v měřítku 100 %.</p></div>
     </div>
     <div id="t-plat" class="stack" hidden>
       <div class="panel stack" style="gap:14px">
         <b>Předplatné</b>
         <div class="note ${bt.cls}">${esc(bt.text)}</div>
-        ${demo.on?`<p class="small muted">V ukázce se nic neplatí. Skutečný podnik má prvních 14 dní zdarma, potom ${kc(PRICE.month)} měsíčně nebo ${kc(PRICE.year)} ročně.</p><div class="row-btns"><a class="btn primary" href="#/registrace">Založit vlastní podnik zdarma</a></div>`:bl.comp?"":paying?`<p class="small muted">Faktury, změnu platební karty, přechod mezi měsíčním a ročním předplatným i zrušení najdete ve správě předplatného. Přihlásíte se e-mailem${bl.billing_email?" <b>"+esc(bl.billing_email)+"</b>":""}, na který vám přijde odkaz.</p>
+        ${demo.on?`<p class="small muted">V ukázce se nic neplatí. Skutečný podnik má prvních 30 dní zdarma, potom ${kc(PRICE.month)} měsíčně nebo ${kc(PRICE.year)} ročně.</p><div class="row-btns"><a class="btn primary" href="#/registrace">Založit vlastní podnik zdarma</a></div>`:bl.comp?"":paying?`<p class="small muted">Faktury, změnu platební karty, přechod mezi měsíčním a ročním předplatným i zrušení najdete ve správě předplatného. Přihlásíte se e-mailem${bl.billing_email?" <b>"+esc(bl.billing_email)+"</b>":""}, na který vám přijde odkaz.</p>
           <div class="row-btns"><a class="btn primary" href="${esc(PORTAL)}${bl.billing_email?"?prefilled_email="+encodeURIComponent(bl.billing_email):""}" target="_blank" rel="noopener">Spravovat předplatné a faktury</a></div>`
           :`<div class="plans">
             <div class="plan"><div class="eyebrow">Měsíčně</div><div class="big" style="font-size:2.4rem">${kc(PRICE.month)}</div><p class="small muted">měsíčně, zrušíte kdykoli</p><a class="btn primary" href="${esc(payUrl("month",bl,b.owner_email))}">Zaplatit měsíčně</a></div>
@@ -89,6 +92,14 @@ async function viewOwner(tab){
         <label class="field">Odkaz na recenzi na Googlu <small>Profil firmy na Googlu → Požádat o recenze → zkopírovat odkaz. Bez odkazu se o recenzi neprosí.</small><input class="input" id="fReview" type="url" value="${esc(b.google_review_url||"")}" placeholder="https://g.page/r/…/review"></label>
         <button class="btn primary" type="submit">Uložit</button>
         <div class="msg" id="fOut" role="status"></div>
+      </form>
+      <form class="form panel" id="optForm" novalidate>
+        <b>Pravidla razítek</b>
+        <label class="field">Nejvíc razítek na jednu kartu za den <small>ochrana proti falešným razítkům; při hodnotě 1 obsluze zmizí tlačítko +2</small><input class="input" id="oLimit" type="number" min="1" max="20" value="${b.daily_stamp_limit||2}" required></label>
+        <label class="check"><input type="checkbox" id="oWelcome"${b.welcome_stamp?" checked":""}><span>Uvítací razítko: nový zákazník dostane první razítko hned při získání karty. Rozdělanou kartu lidé dokončují ochotněji než prázdnou.</span></label>
+        <label class="field">Pravidla pro zákazníky <small>nepovinné, zobrazí se na kartě – např. za co je razítko a jestli razítka propadají</small><textarea class="input" id="oRules" rows="3" maxlength="300" placeholder="Razítko za každý nápoj nad 60 Kč. Razítka nepropadají.">${esc(b.rules_text||"")}</textarea></label>
+        <button class="btn primary" type="submit">Uložit pravidla</button>
+        <div class="msg" id="optOut" role="status"></div>
       </form>
       <div class="panel stack" style="gap:12px">
         <b>Zaměstnanci</b>
@@ -117,16 +128,18 @@ async function viewOwner(tab){
   $$("[data-go]").forEach(t=>t.addEventListener("click",()=>show(t.dataset.go)));
   $("#copyCard").addEventListener("click",()=>copy(cardUrl,$("#copyCardOut")));
   $("#chart").innerHTML=`<div style="overflow-x:auto">${barChart(st.daily||[])}</div>`;
-  const KIND={join:["Nová karta",""],stamp:["Razítko","stamp"],redeem:["Odměna vydána","redeem"],review_click:["Otevřel recenzi","review"]};
+  const KIND={import:["Převod z papíru","stamp"],join:["Nová karta",""],stamp:["Razítko","stamp"],redeem:["Odměna vydána","redeem"],review_click:["Otevřel recenzi","review"]};
   const feed=st.recent||[];
   $("#feed").innerHTML=feed.length?feed.map(e=>{ const k=KIND[e.kind]||[e.kind,""]; return `<li><span><span class="pill ${k[1]}">${k[0]}</span> ${e.name?esc(e.name):e.card?'<span class="mono muted">'+esc(e.card)+'</span>':'<span class="muted">smazaná karta</span>'}</span><span class="muted">${fmtDT(e.at)}</span></li>`; }).join(""):`<li class="muted">Zatím nic. První zákazník se objeví po naskenování QR na pultu.</li>`;
   // customers
-  let custLoaded=false, qTimer=0;
+  let custLoaded=false, qTimer=0, idleDays=0;
+  $$("[data-idle]").forEach(x=>x.addEventListener("click",()=>{ idleDays=+x.dataset.idle; $$("[data-idle]").forEach(y=>y.setAttribute("aria-pressed",String(y===x))); loadCustomers($("#cq").value.trim()); }));
   async function loadCustomers(q){
     custLoaded=true;
     try{
-      const list=await rpc("owner_customers",{p_slug:s.slug,p_code:s.code,p_query:q||null});
-      $("#clist").innerHTML=list.length?list.map(c=>`<li><button type="button" data-id="${esc(c.id)}"><span class="nm">${c.name?esc(c.name):'<span class="mono">'+esc(c.code)+'</span>'}${c.reward_ready?' <span class="pill ok">odměna čeká</span>':""}</span><span class="vs">${c.total_stamps}</span><span class="sub">${Math.min(c.stamps,b.stamps_needed)}/${b.stamps_needed} na kartě · ${c.rewards_redeemed} ${plural(c.rewards_redeemed,"odměna","odměny","odměn")} · poslední návštěva ${c.last_stamp_at?fmtD(c.last_stamp_at):"–"}${c.email?" · "+esc(c.email):""}</span></button></li>`).join(""):`<li class="muted small" style="padding:12px 4px">${q?"Nikoho jsme nenašli.":"Zatím žádní zákazníci."}</li>`;
+      let list=await rpc("owner_customers",{p_slug:s.slug,p_code:s.code,p_query:q||null});
+      if(idleDays) list=list.filter(c=>Date.now()-new Date(c.last_stamp_at||c.created_at).getTime()>idleDays*864e5);
+      $("#clist").innerHTML=list.length?list.map(c=>`<li><button type="button" data-id="${esc(c.id)}"><span class="nm">${c.name?esc(c.name):'<span class="mono">'+esc(c.code)+'</span>'}${c.reward_ready?' <span class="pill ok">odměna čeká</span>':""}</span><span class="vs">${c.total_stamps}</span><span class="sub">${Math.min(c.stamps,b.stamps_needed)}/${b.stamps_needed} na kartě · ${c.rewards_redeemed} ${plural(c.rewards_redeemed,"odměna","odměny","odměn")} · poslední návštěva ${c.last_stamp_at?fmtD(c.last_stamp_at):"–"}${c.email?" · "+esc(c.email):""}</span></button></li>`).join(""):`<li class="muted small" style="padding:12px 4px">${idleDays?"Nikdo takový. Všichni zákazníci tu byli v posledních "+idleDays+" dnech.":q?"Nikoho jsme nenašli.":"Zatím žádní zákazníci."}</li>`;
       $$("#clist button").forEach(x=>x.addEventListener("click",()=>openCustomer(x.dataset.id)));
     }catch(e){ if(authFail(e)) return; $("#cOut").textContent=say(e); }
   }
@@ -135,13 +148,13 @@ async function viewOwner(tab){
     openSheet(`<p class="muted">Načítám…</p>`);
     try{
       const c=await rpc("owner_customer",{p_slug:s.slug,p_code:s.code,p_card:id});
-      const HK={join:"Získal(a) kartu",stamp:"Návštěva (razítko)",redeem:"Vydaná odměna",review_click:"Otevřel(a) recenzi"};
+      const HK={import:"Převod z papírové kartičky",join:"Získal(a) kartu",stamp:"Návštěva (razítko)",redeem:"Vydaná odměna",review_click:"Otevřel(a) recenzi"};
       openSheet(`<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><h2 id="sheetTitle" style="font-size:1.6rem">${c.name?esc(c.name):"Zákazník"}</h2><span class="mono small muted">${short(c.token)}</span></div>
         ${c.email?`<p class="small muted">${esc(c.email)}</p>`:""}
         <div style="--accent:${esc(b.accent)}">${stampsGrid(c.stamps,b.stamps_needed,-1)}</div>
         <div class="kv"><div><b>${c.total_stamps}</b><span>návštěv celkem</span></div><div><b>${Math.min(c.stamps,b.stamps_needed)}/${b.stamps_needed}</b><span>na kartě</span></div><div><b>${c.rewards_redeemed}</b><span>vydaných odměn</span></div></div>
         <p class="small muted">Karta od ${fmtD(c.created_at)} · poslední návštěva ${c.last_stamp_at?fmtDT(c.last_stamp_at):"zatím žádná"}</p>
-        <b>Historie</b><ul class="feed">${(c.history||[]).map(h=>`<li><span>${HK[h.kind]||h.kind}</span><span class="muted">${fmtDT(h.at)}</span></li>`).join("")||'<li class="muted">Bez záznamů</li>'}</ul>
+        <b>Historie</b><ul class="feed">${(c.history||[]).map(h=>`<li><span>${HK[h.kind]||h.kind}${h.kind==="import"&&h.qty?" ("+h.qty+" "+plural(h.qty,"razítko","razítka","razítek")+")":""}</span><span class="muted">${fmtDT(h.at)}</span></li>`).join("")||'<li class="muted">Bez záznamů</li>'}</ul>
         <button class="btn ghost" type="button" id="cClose">Zavřít</button>`);
       $("#cClose").addEventListener("click",closeSheet);
     }catch(e){ openSheet(`<p class="msg err">${esc(say(e))}</p><button class="btn ghost" type="button" id="cClose">Zavřít</button>`); $("#cClose").addEventListener("click",closeSheet); }
@@ -160,12 +173,20 @@ async function viewOwner(tab){
     e.preventDefault(); const out=$("#fOut"); out.className="msg";
     const needed=parseInt($("#fNeeded").value,10), url=$("#fReview").value.trim();
     if(!(needed>=3&&needed<=30)){ out.className="msg err"; out.textContent=ERR.bad_needed; return; }
-    if(url&&!/^https:\/\//.test(url)){ out.className="msg err"; out.textContent="Odkaz na recenzi musí začínat https://"; return; }
+    if(url&&!reviewUrlOk(url)){ out.className="msg err"; out.textContent=ERR.bad_review_url; return; }
     try{
       await rpc("update_business",{p_slug:s.slug,p_code:s.code,p_name:$("#fName").value.trim(),p_category:$("#fCat").value,p_reward:$("#fReward").value.trim(),p_needed:needed,p_review_url:url||null,p_accent:$("#fAccent").value});
       out.className="msg ok"; out.textContent="Uloženo."; s.name=$("#fName").value.trim(); sess.set(s);
     }catch(err){ out.className="msg err"; out.textContent=say(err); }
   });
+  $("#optForm").addEventListener("submit",async e=>{
+    e.preventDefault(); const out=$("#optOut"); out.className="msg"; const lim=parseInt($("#oLimit").value,10);
+    if(!(lim>=1&&lim<=20)){ out.className="msg err"; out.textContent=ERR.bad_limit; return; }
+    try{ await rpc("owner_set_options",{p_slug:s.slug,p_code:s.code,p_daily_limit:lim,p_welcome:$("#oWelcome").checked,p_rules:$("#oRules").value.trim()||null}); out.className="msg ok"; out.textContent="Uloženo."; }
+    catch(err){ out.className="msg err"; out.textContent=say(err); }
+  });
+  if($("#idleGo")) $("#idleGo").addEventListener("click",()=>{ show("cust"); const x=$('[data-idle="30"]'); if(x) x.click(); });
+  $$("[data-print]").forEach(x=>x.addEventListener("click",()=>printPoster(x.dataset.print)));
   $("#newStaff").addEventListener("click",async()=>{
     try{ const r=await rpc("owner_reset_staff_code",{p_slug:s.slug,p_code:s.code});
       $("#staffCodeBox").innerHTML=`<p class="small muted">Nový kód obsluhy (zapište si ho, znovu se nezobrazí):</p><div class="bigcode">${esc(r.staff_code)}</div>`;
@@ -183,6 +204,21 @@ async function viewOwner(tab){
     catch(err){ out.className="msg err"; out.textContent=say(err); }
   });
   show(["stats","cust","qr","plat","set"].includes(tab)?tab:"stats");
+}
+/* prints the poster in an exact paper size; "Save as PDF" in the print dialog gives a file for a print shop */
+function printPoster(size){
+  const c=$("#poster"); if(!c) return;
+  let img; try{ img=c.toDataURL("image/png"); }catch(e){ return; }
+  const dim={A4:[210,297],A5:[148,210],A6:[105,148]}[size]||[210,297];
+  $$("#printSheet,#printStyle").forEach(x=>x.parentNode.removeChild(x));
+  const st=document.createElement("style"); st.id="printStyle";
+  st.textContent=`@page{size:${dim[0]}mm ${dim[1]}mm;margin:0}@media print{body>*:not(#printSheet){display:none!important}#printSheet{display:block!important;width:${dim[0]}mm;height:${dim[1]}mm;margin:0}#printSheet img{width:100%;height:100%;object-fit:contain;display:block}html,body{background:#fff!important;margin:0!important;padding:0!important}}`;
+  const sh=document.createElement("div"); sh.id="printSheet"; sh.style.display="none"; sh.innerHTML=`<img alt="Plakátek s QR kódem" src="${img}">`;
+  document.head.appendChild(st); document.body.appendChild(sh);
+  const done=()=>{ if(sh.parentNode) sh.parentNode.removeChild(sh); if(st.parentNode) st.parentNode.removeChild(st); removeEventListener("afterprint",done); };
+  addEventListener("afterprint",done);
+  const im=sh.querySelector("img"); const go=()=>setTimeout(()=>window.print(),50);
+  if(im.complete) go(); else im.onload=go;
 }
 async function drawPoster(b,url){
   const c=$("#poster"); if(!c) return; const x=c.getContext("2d"), W=c.width, H=c.height;
@@ -215,7 +251,7 @@ async function drawPoster(b,url){
   if(window.StemplQR){ const q=window.StemplQR(url,"M"); const n=q.n, cs=qs/n; x.fillStyle="#111";
     for(let r=0;r<n;r++) for(let k=0;k<n;k++) if(q.dark(r,k)) x.fillRect(qx+k*cs,qy+r*cs,Math.ceil(cs),Math.ceil(cs)); }
   x.fillStyle="#16140f"; x.font="700 74px "+F; x.fillText("Naskenujte fotoaparátem", W/2, qy+qs+54+112);
-  x.font="400 42px "+F; x.fillStyle="#655f55"; x.fillText("Karta je zdarma a nic se nestahuje.", W/2, qy+qs+54+180);
+  x.font="400 42px "+F; x.fillStyle="#655f55"; x.fillText(b.welcome_stamp?"První razítko máte hned. Nic se nestahuje.":"Karta je zdarma a nic se nestahuje.", W/2, qy+qs+54+180);
   sp("4px"); x.font="600 28px "+F; x.fillStyle="#8a8377"; x.fillText("ŠTEMPL", W/2, H-56); sp("0px");
   try{ $("#dl").href=c.toDataURL("image/png"); }catch(e){}
 }

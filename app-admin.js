@@ -3,7 +3,7 @@
 function viewRegister(){
   document.title="Registrace · Štempl";
   app.innerHTML=`<div class="wrap narrow stack" style="padding-block:28px">
-    <div><div class="eyebrow">14 dní zdarma, bez platební karty</div><h1 style="font-size:2.4rem;margin-top:8px">Registrace podniku</h1></div>
+    <div><div class="eyebrow">30 dní zdarma, bez platební karty</div><h1 style="font-size:2.4rem;margin-top:8px">Registrace podniku</h1></div>
     <form class="form panel" id="regForm" novalidate>
       <label class="field">Název podniku<input class="input" id="rName" placeholder="Kavárna U Mostu" maxlength="80" required></label>
       <label class="field">Adresa podniku <small>bude v odkazu na kartu a slouží k přihlášení</small><input class="input mono" id="rSlug" maxlength="40" autocapitalize="off" required></label>
@@ -97,14 +97,25 @@ function viewPaid(){
 function providerLine(){ return `${esc(PROVIDER.name)}, ${esc(PROVIDER.city)}${PROVIDER.ico?", IČO "+esc(PROVIDER.ico):""}, e-mail <a href="mailto:${esc(PROVIDER.email)}">${esc(PROVIDER.email)}</a>`; }
 function viewTerms(){
   document.title="Obchodní podmínky · Štempl";
-  app.innerHTML=`<div class="wrap mid legal" style="padding-block:32px"><div class="eyebrow">Platné od 27. 10. 2026</div><h1 style="font-size:2.4rem;margin-top:8px">Obchodní podmínky služby Štempl</h1>
+  app.innerHTML=`<div class="wrap mid legal" style="padding-block:32px"><div class="eyebrow">Platné od 16. 11. 2026</div><h1 style="font-size:2.4rem;margin-top:8px">Obchodní podmínky služby Štempl</h1>
   <h2>1. Kdo službu poskytuje</h2><p>Provozovatel: ${providerLine()} (dále „provozovatel“). Zákazníkem je podnikatel, který si službu zaregistruje (dále „podnik“). Služba je určena jen podnikatelům, ne spotřebitelům.</p>
   <h2>2. Co služba umí</h2><p>Štempl je webová aplikace pro digitální věrnostní karty: zákazníci podniku si kartu otevřou v mobilu, obsluha přidává razítka a vydává odměny a podnik vidí přehled zákazníků a statistiky. Aplikace může zákazníky požádat o recenzi na Googlu. Počet zaměstnanců ani zařízení podniku není omezený.</p>
-  <h2>3. Registrace a zkušební doba</h2><p>Podnik se registruje online a potvrdí e-mail. Prvních 14 dní je zdarma a bez závazku. Když podnik po zkušební době nezaplatí, nic se neúčtuje, jen se pozastaví přidávání razítek a nových karet. Data zůstávají uložená.</p>
+  <h2>3. Registrace a zkušební doba</h2><p>Podnik se registruje online a potvrdí e-mail. Prvních 30 dní je zdarma a bez závazku. Když podnik po zkušební době nezaplatí, nic se neúčtuje, jen se pozastaví přidávání razítek a nových karet. Data zůstávají uložená.</p>
   <h2>4. Cena a platby</h2><p>Cena je ${kc(PRICE.month)} měsíčně, nebo ${kc(PRICE.year)} ročně za jeden podnik. ${esc(PROVIDER.vatNote)} Platí se předem platební kartou přes službu Stripe. Předplatné se automaticky obnovuje vždy na další období. Doklad o platbě (fakturu) zasílá Stripe e-mailem a je k dispozici ve správě předplatného.</p>
   <h2>5. Zrušení</h2><p>Podnik může předplatné kdykoli zrušit ve správě předplatného (Přehled → Předplatné). Služba pak běží do konce zaplaceného období a dál se neúčtuje. Za nevyčerpanou část období se peníze nevracejí. Když platba selže, Stripe ji zkusí opakovat. Pokud se do 7 dnů po konci období nepodaří, služba se pozastaví.</p>
   <h2>6. Povinnosti podniku</h2><p>Podnik nastavuje odměny a plní je svým zákazníkům. Za věrnostní program vůči svým zákazníkům odpovídá podnik. Podnik nesmí razítka podmiňovat napsáním recenze a chrání své přístupové kódy. Kód majitele nesmí předávat zaměstnancům, ti používají kód obsluhy.</p>
-  <h2>7. Osobní údaje zákazníků podniku</h2><p>Pro osobní údaje svých zákazníků je správcem podnik, provozovatel je jejich zpracovatelem (čl. 28 GDPR). Provozovatel zpracovává údaje jen k provozu služby, podle pokynů podniku daných nastavením aplikace, zajišťuje jejich zabezpečení a mlčenlivost, využívá jen subdodavatele uvedené v <a href="#/soukromi">zásadách ochrany osobních údajů</a>, pomáhá podniku vyřizovat žádosti zákazníků a po skončení služby údaje na žádost podniku smaže nebo předá. Tento odstavec je smlouvou o zpracování osobních údajů.</p>
+  <h2>7. Zpracování osobních údajů zákazníků podniku</h2>
+  <p>Tento článek je smlouvou o zpracování osobních údajů podle čl. 28 GDPR. Pro osobní údaje svých zákazníků je správcem podnik, provozovatel je jejich zpracovatelem.</p>
+  <ul>
+  <li><b>Předmět a doba:</b> provoz věrnostních karet po dobu trvání služby.</li>
+  <li><b>Koho a jaké údaje:</b> zákazníci podniku, kteří si založili kartu. Náhodný kód karty, počet razítek a odměn, časy návštěv; křestní jméno a e-mail jen pokud je zákazník sám vyplnil (e-mail s jeho souhlasem).</li>
+  <li><b>Pokyny:</b> provozovatel zpracovává údaje jen k provozu služby a podle pokynů podniku daných nastavením aplikace. K vlastním účelům je nepoužívá.</li>
+  <li><b>Zabezpečení a mlčenlivost:</b> šifrovaný přenos, databáze přístupná jen přes ověřené funkce, přístupové kódy uložené jen jako otisk (hash), omezení opakovaných pokusů o přihlášení. K údajům má přístup jen provozovatel, který je vázán mlčenlivostí.</li>
+  <li><b>Subdodavatelé:</b> Supabase (databáze a serverové funkce, data uložená v EU – Frankfurt), Google (odesílání e-mailů), GitHub (hosting webové aplikace), Stripe (jen platby podniků, údaje zákazníků podniku nezpracovává). Google, GitHub a Stripe sídlí v USA; případné předání údajů mimo EU se opírá o rozhodnutí o odpovídající ochraně (EU–US Data Privacy Framework) nebo standardní smluvní doložky. Změnu subdodavatele oznámí provozovatel e-mailem nejméně 14 dní předem a podnik ji může odmítnout ukončením služby.</li>
+  <li><b>Porušení zabezpečení:</b> provozovatel ho podniku oznámí bez zbytečného odkladu, nejpozději do 72 hodin od zjištění, s popisem, čeho se týkalo a jaká opatření přijal.</li>
+  <li><b>Součinnost:</b> provozovatel pomáhá podniku vyřizovat žádosti zákazníků (přístup, oprava, výmaz) a na vyžádání doloží, jak tyto povinnosti plní.</li>
+  <li><b>Po skončení služby:</b> podnik si může seznam zákazníků stáhnout. Na žádost podniku provozovatel údaje smaže do 30 dnů; bez žádosti je smaže nejpozději 12 měsíců po skončení služby.</li>
+  </ul>
   <h2>8. Dostupnost a odpovědnost</h2><p>Provozovatel se snaží o nepřetržitý provoz, ale nezaručuje ho. Odstávky a změny funkcí oznamuje předem, pokud to jde. Odpovědnost provozovatele za škodu je omezena na částku, kterou podnik zaplatil za posledních 12 měsíců. Provozovatel neodpovídá za ušlý zisk ani za obsah recenzí na Googlu.</p>
   <h2>9. Ukončení ze strany provozovatele</h2><p>Provozovatel může službu podniku ukončit, pokud podnik hrubě porušuje tyto podmínky nebo zákon. Při ukončení služby provozovatelem z jiného důvodu vrátí poměrnou část zaplacené ceny.</p>
   <h2>10. Změny podmínek a rozhodné právo</h2><p>Změny podmínek oznámí provozovatel e-mailem nejméně 30 dní předem. Podnik je může odmítnout zrušením předplatného. Vztah se řídí českým právem, zejména občanským zákoníkem. Spory řeší obecné soudy ČR.</p>
@@ -112,22 +123,23 @@ function viewTerms(){
 }
 function viewPrivacy(){
   document.title="Ochrana osobních údajů · Štempl";
-  app.innerHTML=`<div class="wrap mid legal" style="padding-block:32px"><div class="eyebrow">Platné od 27. 10. 2026</div><h1 style="font-size:2.4rem;margin-top:8px">Ochrana osobních údajů</h1>
+  app.innerHTML=`<div class="wrap mid legal" style="padding-block:32px"><div class="eyebrow">Platné od 16. 11. 2026</div><h1 style="font-size:2.4rem;margin-top:8px">Ochrana osobních údajů</h1>
   <h2>Zákazníci podniků (držitelé karet)</h2>
   <p>Správcem vašich údajů je podnik, jehož kartu máte. Štempl (${providerLine()}) je zpracovatel, který kartu provozuje jménem podniku.</p>
   <ul><li><b>Co ukládáme:</b> náhodný kód karty, počet razítek, odměn a čas návštěv. Křestní jméno a e-mail jen pokud je sami vyplníte, e-mail jen s vaším souhlasem. Nevyžadujeme registraci, heslo ani telefonní číslo.</li>
   <li><b>K čemu:</b> k vedení věrnostního programu (razítka a odměny) a k obnovení karty na novém telefonu (e-mail). Podnik vidí vaši kartu, počet návštěv a údaje, které jste vyplnili. Právní základ: plnění věrnostního programu, u e-mailu váš souhlas.</li>
   <li><b>Jak dlouho:</b> po dobu, kdy podnik věrnostní program provozuje, nebo dokud kartu nesmažete. Karta nevyprší kvůli neaktivitě. Souhlas s uložením e-mailu můžete kdykoli odvolat.</li>
-  <li><b>Smazání:</b> kartu i se všemi údaji smažete sami tlačítkem <i>Smazat kartu a moje údaje</i> na kartě. Smazání je okamžité a nevratné.</li></ul>
+  <li><b>Smazání:</b> kartu i se všemi údaji smažete sami odkazem <i>Smazat kartu a moje údaje</i> dole na kartě. Smazání je okamžité a nevratné.</li>
+  <li><b>Ochrana proti zneužití:</b> při zakládání karty a přihlašování krátce (nejdéle 2 dny) uchováváme nečitelný otisk IP adresy, abychom zastavili roboty a hádání kódů. Samotnou IP adresu neukládáme.</li></ul>
   <h2>Podniky (zákazníci Štemplu)</h2>
   <p>Správcem je provozovatel. Zpracováváme název a údaje podniku, e-mail a telefon majitele a údaje o předplatném, abychom mohli službu poskytovat a fakturovat (plnění smlouvy, účetní povinnosti). Údaje o platební kartě nevidíme, zpracovává je Stripe. Účetní doklady uchováváme 10 let, ostatní údaje po dobu trvání služby.</p>
   <h2>Kdo nám pomáhá (zpracovatelé)</h2>
-  <ul><li><b>Supabase</b> – databáze a serverové funkce, servery v EU.</li><li><b>Stripe</b> – platby podniků a faktury.</li><li><b>Google (Gmail)</b> – odesílání e-mailů (potvrzení registrace, obnova karty).</li><li><b>GitHub</b> – hosting webové aplikace (běžné technické záznamy o návštěvě, např. IP adresa).</li></ul>
+  <ul><li><b>Supabase</b> – databáze a serverové funkce, data uložená v EU (Frankfurt).</li><li><b>Stripe</b> – platby podniků a faktury.</li><li><b>Google (Gmail)</b> – odesílání e-mailů (potvrzení registrace, obnova karty).</li><li><b>GitHub</b> – hosting webové aplikace (běžné technické záznamy o návštěvě, např. IP adresa).</li></ul>
   <p>Písma i knihovny aplikace jsou uložené přímo u nás, takže prohlížeč při běžném použití nekomunikuje s dalšími službami. Výjimkou je odkaz na recenzi na Googlu a platební stránka Stripe, které otevíráte sami.</p>
   <h2>Cookies a úložiště v prohlížeči</h2><p>Nepoužíváme reklamní ani analytické cookies. Ukládáme jen to, bez čeho aplikace nefunguje. Podrobnosti najdete v <a href="cookies.html">zásadách cookies</a>.</p>
   <h2>Vaše práva</h2><p>Máte právo na přístup k údajům, opravu, výmaz, omezení zpracování, přenositelnost a vznést námitku. Napište podniku, nebo nám na <a href="mailto:${esc(PROVIDER.email)}">${esc(PROVIDER.email)}</a>. Můžete také podat stížnost u Úřadu pro ochranu osobních údajů (uoou.gov.cz).</p>
   <p class="small muted">Recenze na Googlu jsou dobrovolné a nemají vliv na razítka ani odměny.</p>
-  <p class="small muted" style="margin-top:24px"><a href="javascript:history.back()">Zpět</a></p></div>${foot()}`;
+  <p class="small muted" style="margin-top:24px"><a href="#/">Zpět na úvod</a></p></div>${foot()}`;
 }
 
 /* ================= ADMIN (Oliver) ================= */
@@ -151,7 +163,7 @@ function viewAdmin(){
 async function adminDash(key){
   loading("Načítám správu…");
   let d; try{ d=await rpc("admin_overview",{p_installer_key:key}); }
-  catch(e){ store.del("ikey"); sessionStorage.removeItem("stempl.ikey"); return fail(say(e),`<a class="btn primary" href="#/sprava" onclick="setTimeout(()=>location.reload(),0)">Znovu</a>`); }
+  catch(e){ store.del("ikey"); sessionStorage.removeItem("stempl.ikey"); fail(say(e),`<button class="btn primary" type="button" id="adRetry">Znovu</button>`); $("#adRetry").addEventListener("click",viewAdmin); return; }
   const now=Date.now(), biz=d.businesses||[];
   const status=bl=>{ if(bl.comp) return '<span class="pill ok">zdarma</span>'; const st=bl.status;
     if(st==="active"||st==="trialing") return `<span class="pill ok">platí ${bl.plan==="year"?"ročně":"měsíčně"}${bl.cancel_at_period_end?" · zrušeno":""}</span>`;
@@ -162,22 +174,23 @@ async function adminDash(key){
   app.innerHTML=`<div class="wrap stack" style="padding-block:24px;gap:20px">
     <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap"><div><div class="eyebrow">Správa Štemplu</div><h1 style="font-size:2.4rem;margin-top:6px">Podniky</h1></div>
       <div class="row-btns"><a class="btn primary" href="#/novy">Založit podnik</a><button class="btn ghost" id="akOut" type="button">Odhlásit</button></div></div>
-    <div class="tiles"><div class="tile"><b>${biz.length}</b><span>podniků</span></div><div class="tile"><b>${paying}</b><span>platících</span></div><div class="tile"><b>${kc(d.mrr||0)}</b><span>měsíční příjem (MRR)</span></div><div class="tile"><b>${d.pending_registrations||0}</b><span>nepotvrzených registrací</span></div></div>
+    <div class="tiles"><div class="tile"><b>${biz.length}</b><span>podniků</span></div><div class="tile"><b>${paying}</b><span>platících</span></div><div class="tile"><b>${kc(d.mrr||0)}</b><span>měsíční příjem (MRR)</span></div><div class="tile"><b>${d.pending_registrations||0}</b><span>nepotvrzených registrací</span></div><div class="tile"><b>${d.failed_logins_24h||0}</b><span>chybných přihlášení za 24 h</span></div></div>
     ${(d.unmatched||[]).length?`<div class="panel stack" style="gap:10px"><b>Platby bez podniku</b><p class="small muted">Někdo zaplatil přes obecný odkaz. Přiřaďte platbu k podniku.</p>${d.unmatched.map(u=>`<div class="row-btns" style="align-items:center"><span class="small">${fmtDT(u.at)} · ${esc(u.email||"")} ${u.business_name?"· "+esc(u.business_name):""}</span><select class="input" style="max-width:220px" data-link="${esc(u.id)}"><option value="">vyberte podnik…</option>${biz.map(b=>`<option value="${esc(b.slug)}">${esc(b.name)}</option>`).join("")}</select></div>`).join("")}</div>`:""}
     <div class="panel scrollx"><table class="table"><thead><tr><th>Podnik</th><th>Předplatné</th><th>Zákazníci</th><th>Razítka 30 d</th><th>Poslední aktivita</th><th>Akce</th></tr></thead><tbody>
       ${biz.map(b=>{ const idle=!b.last_activity||now-new Date(b.last_activity).getTime()>14*864e5;
         return `<tr><td><b>${esc(b.name)}</b><div class="tiny muted mono">${esc(b.slug)}</div><div class="tiny muted">${esc(b.owner_email||"bez e-mailu")}${b.phone?" · "+esc(b.phone):""}</div>${b.has_review_url?"":'<div><span class="pill warn">chybí odkaz na recenze</span></div>'}</td>
           <td>${status(b.billing)}</td><td>${b.customers}</td><td>${b.stamps_30d}</td>
           <td>${b.last_activity?fmtD(b.last_activity):"–"}${idle?' <span class="pill warn">14+ dní nic</span>':""}</td>
-          <td><div class="row-btns"><button class="btn sm ghost" data-a="trial" data-s="${esc(b.slug)}">+14 dní</button><button class="btn sm ghost" data-a="comp" data-s="${esc(b.slug)}" data-v="${b.billing.comp?"0":"1"}">${b.billing.comp?"Zrušit zdarma":"Dát zdarma"}</button><button class="btn sm ghost" data-a="code" data-s="${esc(b.slug)}">Nový kód majitele</button><button class="btn sm danger" data-a="del" data-s="${esc(b.slug)}">Smazat</button></div></td></tr>`; }).join("")||'<tr><td colspan="6" class="muted">Zatím žádné podniky.</td></tr>'}
+          <td><div class="row-btns"><button class="btn sm ghost" data-a="trial" data-s="${esc(b.slug)}">+30 dní</button><button class="btn sm ghost" data-a="comp" data-s="${esc(b.slug)}" data-v="${b.billing.comp?"0":"1"}">${b.billing.comp?"Zrušit zdarma":"Dát zdarma"}</button><button class="btn sm ghost" data-a="code" data-s="${esc(b.slug)}">Nový kód majitele</button><button class="btn sm danger" data-a="del" data-s="${esc(b.slug)}">Smazat</button></div></td></tr>`; }).join("")||'<tr><td colspan="6" class="muted">Zatím žádné podniky.</td></tr>'}
     </tbody></table><div class="msg" id="adOut" role="status"></div></div>
     <div class="panel"><b>Poptávky z webu</b><ul class="feed" style="margin-top:8px">${(d.leads||[]).map(l=>`<li><span><b>${esc(l.business)}</b> · ${esc(l.name)} · ${esc(l.contact)}${l.message?'<br><span class="small muted">'+esc(l.message)+'</span>':""}</span><span class="muted">${fmtD(l.created_at)}</span></li>`).join("")||'<li class="muted">Zatím žádné.</li>'}</ul></div>
+    <div class="panel"><b>Chyby v aplikaci u uživatelů</b><p class="small muted" style="margin-top:4px">Posledních 30 chyb skriptu z prohlížečů. Uchovávají se 30 dní.</p><ul class="feed" style="margin-top:8px">${(d.errors||[]).map(x=>`<li><span><b>${esc(x.message)}</b><br><span class="small muted">${esc(x.page||"")} · ${esc(x.source||"")}<br>${esc(x.ua||"")}</span></span><span class="muted">${fmtDT(x.at)}</span></li>`).join("")||'<li class="muted">Žádné chyby.</li>'}</ul></div>
   </div>`;
   $("#akOut").addEventListener("click",()=>{ store.del("ikey"); sessionStorage.removeItem("stempl.ikey"); viewAdmin(); });
   $$("[data-a]").forEach(btn=>btn.addEventListener("click",async()=>{
     const a=btn.dataset.a, slug=btn.dataset.s, out=$("#adOut"); out.className="msg";
     try{
-      if(a==="trial") await rpc("admin_set_billing",{p_installer_key:key,p_slug:slug,p_comp:null,p_trial_days:14});
+      if(a==="trial") await rpc("admin_set_billing",{p_installer_key:key,p_slug:slug,p_comp:null,p_trial_days:30});
       if(a==="comp") await rpc("admin_set_billing",{p_installer_key:key,p_slug:slug,p_comp:btn.dataset.v==="1",p_trial_days:null});
       if(a==="del"){
         const typed=prompt("Smazat podnik "+slug+" i se všemi kartami zákazníků? Nejde to vrátit.\nPro potvrzení napište adresu podniku:");
@@ -217,7 +230,7 @@ function viewNew(){
       </div>
       <div class="two">
         <label class="field">E-mail majitele <small>nepovinné</small><input class="input" id="nEmail" type="email"></label>
-        <label class="field">Zkušební doba (dní)<input class="input" id="nTrial" type="number" min="0" max="365" value="14"></label>
+        <label class="field">Zkušební doba (dní)<input class="input" id="nTrial" type="number" min="0" max="365" value="30"></label>
       </div>
       <label class="field">Odkaz na recenzi na Googlu <small>nepovinné, jde doplnit později</small><input class="input" id="nReview" type="url" placeholder="https://g.page/r/…/review"></label>
       <button class="btn primary big" type="submit">Založit podnik</button>
@@ -231,7 +244,7 @@ function viewNew(){
     const slug=slugify($("#nSlug").value), needed=parseInt($("#nNeeded").value,10), url=$("#nReview").value.trim();
     if(slug.length<3){ out.textContent=ERR.bad_slug; return; }
     if(!(needed>=3&&needed<=30)){ out.textContent=ERR.bad_needed; return; }
-    if(url&&!/^https:\/\//.test(url)){ out.textContent="Odkaz na recenzi musí začínat https://"; return; }
+    if(url&&!reviewUrlOk(url)){ out.textContent=ERR.bad_review_url; return; }
     try{
       const r=await rpc("create_business",{p_installer_key:$("#nKey").value.trim(),p_name:$("#nName").value.trim(),p_slug:slug,p_category:$("#nCat").value,p_reward:$("#nReward").value.trim(),p_needed:needed,p_review_url:url||null,p_accent:$("#nAccent").value,p_owner_email:$("#nEmail").value.trim()||null,p_trial_days:parseInt($("#nTrial").value,10)||0});
       $("#newForm").hidden=true;

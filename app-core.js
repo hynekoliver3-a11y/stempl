@@ -11,7 +11,10 @@ const PROVIDER={name:"Oliver Hynek",city:"Brno",ico:"",phone:"",email:"stemplapp
 
 const app=document.getElementById("app");
 /* Customer screens speak English to phones that are not set to Czech or Slovak (?lang=en / ?lang=cs overrides). Business screens stay Czech. */
-const EN=(()=>{ try{ const q=new URLSearchParams(location.search).get("lang"); if(q) return q==="en"; }catch(e){} return !/^(cs|sk)\b/i.test(navigator.language||"cs"); })();
+/* Order: ?lang= in the address, then the customer's own choice (the English / Česky link in the header), then the phone language. */
+const EN=(()=>{ try{ const q=new URLSearchParams(location.search).get("lang"); if(q) return q==="en"; }catch(e){}
+  try{ const v=localStorage.getItem("stempl.lang"); if(v==="en"||v==="cs") return v==="en"; }catch(e){}
+  return !/^(cs|sk)\b/i.test(navigator.language||"cs"); })();
 const L=(cs,en)=>EN?en:cs;
 const ERR_EN={
   network:"Can't reach the server. Check your connection and try again.", no_card:"Card not found.", consent_required:"Tick the consent box, or leave the e-mail empty.",
@@ -200,6 +203,8 @@ function route(){
   const ss=demo.on?null:sess.get(), cta=$("#topCta");
   cta.hidden=["k","c","s","moje","obnovit","pult"].includes(h[0])||(h[0]==="r"&&!ss);
   $("#topLogin").hidden=cta.hidden||!!ss;
+  const lg=$("#topLang"); lg.hidden=!["k","c","s","moje","obnovit"].includes(h[0]);
+  lg.textContent=EN?"Česky":"English"; lg.lang=EN?"cs":"en"; lg.setAttribute("aria-label",EN?"Přepnout do češtiny":"Switch to English");
   if(ss){ cta.href=ss.role==="owner"?"#/prehled":"#/obsluha"; cta.textContent=ss.role==="owner"?"Přehled":"Obsluha"; } else { cta.href="#/registrace"; cta.textContent="Vyzkoušet zdarma"; }
   switch(h[0]){
     case "k": if(h[1]) return viewJoin(h[1],h[2]); break;
@@ -227,6 +232,12 @@ function route(){
   return viewLanding();
 }
 addEventListener("hashchange",route);
+/* language link on customer screens: remember the choice on this phone and reload in the other language */
+document.addEventListener("click",e=>{
+  const a=e.target.closest&&e.target.closest("#topLang"); if(!a) return; e.preventDefault();
+  try{ localStorage.setItem("stempl.lang",EN?"cs":"en"); }catch(e){}
+  if(location.search) location.replace(location.pathname+location.hash); else location.reload();
+});
 /* logo: on the landing page the address does not change, so scroll back to the top ourselves */
 document.addEventListener("click",e=>{
   const a=e.target.closest&&e.target.closest("#topLogo"); if(!a) return;

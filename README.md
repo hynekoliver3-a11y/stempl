@@ -11,7 +11,7 @@ Digitální věrnostní karta v mobilu pro kavárny, bistra a salony. Zákazník
 | Serverová funkce `stempl-api` | `supabase/functions/stempl-api/index.ts` | registrace, e-maily, poptávka z webu, denní úloha |
 | Migrace | `supabase/migrations/` | co bylo v databázi změněno a kdy |
 
-Moduly aplikace: `app-core.js` (nastavení, router, společné funkce), `app-landing.js` (úvodní stránka, ukázka), `app-customer.js` (karta zákazníka), `app-staff.js` (obsluha, skener), `app-owner.js` (přehled majitele, plakátek), `app-admin.js` (registrace, podmínky, Správa).
+Moduly aplikace: `app-pult.js` (režim Pult u kasy, fronta razítek bez signálu), `app-core.js` (nastavení, router, společné funkce), `app-landing.js` (úvodní stránka, ukázka), `app-customer.js` (karta zákazníka), `app-staff.js` (obsluha, skener), `app-owner.js` (přehled majitele, plakátek), `app-admin.js` (registrace, podmínky, Správa).
 
 ## Nasazení
 
@@ -23,7 +23,7 @@ Po změně adresy webu:
 2. Ve Stripe změnit návratovou adresu platebních odkazů na `…/#/zaplaceno`.
 3. Vytisknout nové plakátky: QR kódy i uložené karty jsou vázané na adresu webu.
 
-Při každém nasazení zvyšte `CACHE` v `sw.js` (teď `stempl-v11`), jinak telefony s nainstalovanou aplikací uvidí starou verzi déle.
+Při každém nasazení zvyšte `CACHE` v `sw.js` (teď `stempl-v12`), jinak telefony s nainstalovanou aplikací uvidí starou verzi déle.
 
 ## Co doplnit před prodejem
 

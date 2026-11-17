@@ -156,7 +156,7 @@ document.addEventListener("click",async e=>{
 /* ---------- cookie notice (information only – we use no consent-requiring cookies) ---------- */
 /* the bar is only information (no consent needed), so it stays off the customer's card screens where it would cover the form */
 function cookieBar(route){
-  const show=!store.get("cookieok",false)&&!["k","c","r","moje","obnovit","pripojit"].includes(route);
+  const show=!store.get("cookieok",false)&&!["k","c","r","s","moje","obnovit","pripojit","pult"].includes(route);
   $("#cbar").hidden=!show; document.body.classList.toggle("hasbar",show);
 }
 $("#cbarOk").addEventListener("click",()=>{ store.set("cookieok",true); $("#cbar").hidden=true; document.body.classList.remove("hasbar"); });
@@ -175,7 +175,7 @@ function route(){
   cookieBar(h[0]);
   if(typeof upgradeSession==="function") upgradeSession();
   const ss=demo.on?null:sess.get(), cta=$("#topCta");
-  cta.hidden=["k","c","moje","obnovit"].includes(h[0])||(h[0]==="r"&&!ss);
+  cta.hidden=["k","c","s","moje","obnovit","pult"].includes(h[0])||(h[0]==="r"&&!ss);
   $("#topLogin").hidden=cta.hidden||!!ss;
   if(ss){ cta.href=ss.role==="owner"?"#/prehled":"#/obsluha"; cta.textContent=ss.role==="owner"?"Přehled":"Obsluha"; } else { cta.href="#/registrace"; cta.textContent="Vyzkoušet zdarma"; }
   switch(h[0]){
@@ -186,6 +186,8 @@ function route(){
     case "obnovit": return viewRecover(h[1]||"");
     case "obsluha": return viewStaff();
     case "pripojit": if(h[1]&&h[2]) return viewStaffJoin(h[1],h[2]); break;
+    case "pult": return viewPult();
+    case "s": if(h[1]&&h[2]) return viewClaim(h[1],h[2]); break;
     case "prehled": return viewOwner(h[1]);
     case "demo": return viewOwner(h[1]);
     case "registrace": return viewRegister();

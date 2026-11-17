@@ -1,7 +1,7 @@
 // Štempl: keeps the app shell available offline. Network first, so updates show immediately.
 // Only same-origin files are cached; card data always comes live from the server.
-const CACHE = "stempl-v11";
-const SHELL = ["./", "index.html", "qr.js", "app-core.js", "app-landing.js", "app-customer.js", "app-staff.js", "app-owner.js", "app-admin.js", "jsqr.js", "cookies.html", "cookies.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
+const CACHE = "stempl-v12";
+const SHELL = ["./", "index.html", "qr.js", "app-core.js", "app-landing.js", "app-customer.js", "app-staff.js", "app-owner.js", "app-admin.js", "app-pult.js", "jsqr.js", "cookies.html", "cookies.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });

@@ -271,6 +271,25 @@ footer.foot a{color:var(--muted)}
 .qrfull-code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1.5rem;letter-spacing:.18em;font-weight:700}
 .qrfull .btn{width:min(92vw,420px)}
 body.noscroll{overflow:hidden}
+body.pultmode .top,body.pultmode .foot{display:none}
+.pult{min-height:100vh;display:grid;grid-template-rows:auto auto 1fr;gap:14px;padding:calc(12px + env(safe-area-inset-top)) 16px 16px;max-width:900px;margin:0 auto}
+.pult-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.pult-body{display:grid;gap:14px;align-content:start}
+.pult-cam{position:relative;border-radius:22px;overflow:hidden;background:#000;aspect-ratio:4/3;max-height:58vh;width:100%}
+.pult-cam video{width:100%;height:100%;object-fit:cover;display:block}
+.pult-cam .frame{position:absolute;inset:14% 24%;border:4px solid rgba(255,255,255,.9);border-radius:24px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.pult-cam .hint{position:absolute;left:0;right:0;bottom:14px;text-align:center;color:#fff;font-weight:700;font-size:1.1rem}
+.pult-out{min-height:120px}
+.pult-res{display:grid;place-items:center;gap:6px;text-align:center;padding:22px;border-radius:22px;color:#fff}
+.pult-res svg{width:64px;height:64px}
+.pult-res b{font-size:1.6rem}
+.pult-res span{font-size:1.05rem;opacity:.95}
+.pult-res.ok{background:var(--ok)}.pult-res.bad{background:var(--bad)}.pult-res.warn{background:var(--warn)}
+.pult-qr{display:grid;justify-items:center;gap:14px;background:#fff;border-radius:26px;padding:22px}
+.pult-qr .qrfull-qr{width:min(78vw,52vh,520px)}
+.pult-bar{width:min(78vw,520px);height:6px;border-radius:6px;background:rgba(0,0,0,.08);overflow:hidden}
+.pult-bar i{display:block;height:100%;width:100%;background:var(--ink);transition:width .25s linear}
+.pult-help{text-align:center;font-size:1.15rem;font-weight:600;color:#111;margin:0}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chips button{border:1.5px solid var(--line2);background:transparent;color:inherit;border-radius:999px;padding:7px 14px;font:inherit;font-size:.88rem;font-weight:600;cursor:pointer}
 .chips button[aria-pressed="true"]{background:var(--ink);color:var(--cream);border-color:var(--ink)}
@@ -311,5 +330,6 @@ body.noscroll{overflow:hidden}
 <script src="app-staff.js"></script>
 <script src="app-owner.js"></script>
 <script src="app-admin.js"></script>
+<script src="app-pult.js"></script>
 </body>
 </html>

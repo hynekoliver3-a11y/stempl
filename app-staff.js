@@ -125,7 +125,16 @@ function staffCardPanel(host,s,cur,opts){
         /* back to the scanner by itself, so staff does not have to tap between customers */
         if(fn!=="undo_stamp") autoNext=setTimeout(()=>{ if($("#nextAfter",host)) opts.next(); },3000);
       }
-    }catch(e){ if(authFail(e)) return; draw(); $("#rcOut",host).textContent=say(e); if(navigator.vibrate) navigator.vibrate(200); beep(false); }
+    }catch(e){
+      if(authFail(e)) return;
+      if(e.message==="network"&&fn==="stamp_card"){
+        stampQueue.add({slug:s.slug,token:cur.token,count:count||1}); document.dispatchEvent(new CustomEvent("stempl-queue"));
+        host.innerHTML=`<div class="done" style="background:var(--warn)"><svg viewBox="0 0 100 100"><use href="#mark"/></svg><b style="font-size:1.3rem">Razítko uloženo</b><span>Není signál. Odešle se samo, až bude připojení.</span></div>${opts.next?`<div class="row-btns" style="margin-top:12px"><button class="btn primary" type="button" id="nextAfter">Další zákazník</button></div>`:""}`;
+        beep(true); if(opts.next) $("#nextAfter",host).addEventListener("click",opts.next);
+        return;
+      }
+      draw(); $("#rcOut",host).textContent=say(e); if(navigator.vibrate) navigator.vibrate(200); beep(false);
+    }
   }
   onLeave(()=>clearTimeout(autoNext));
   draw();
@@ -220,11 +229,15 @@ function viewStaff(){
       <ul class="clist" id="found"></ul>
       <div class="msg err" id="stOut" role="status"></div>
     </div>
+    <div id="staffQueue">${queueBadge()}</div>
+    <a class="btn ghost" href="#/pult">Režim Pult – tablet nebo starý telefon u kasy</a>
     ${installBtn("Stáhnout obsluhu do telefonu","")}
     ${s.role==="owner"?`<a class="btn ghost" href="#/prehled">Přehled podniku</a>`:""}
   </div>`;
   if(!demo.on) setManifest("Štempl – obsluha","Štempl",BASE+"#/obsluha");
   $("#out").addEventListener("click",logout);
+  const refreshQ=()=>{ const q=$("#staffQueue"); if(q){ q.innerHTML=queueBadge(); const c=$("#queueClear"); if(c) c.addEventListener("click",()=>{ store.set("queuefail",[]); refreshQ(); }); } };
+  document.addEventListener("stempl-queue",refreshQ); onLeave(()=>document.removeEventListener("stempl-queue",refreshQ)); refreshQ(); flushQueue();
   if($("#whoBtn")) $("#whoBtn").addEventListener("click",()=>staffWelcome(s,viewStaff));
   if(!demo.on&&!store.get("staffguide",false)) setTimeout(()=>staffWelcome(s,viewStaff),50);
   let stream=null, raf=0, busy=false, usedCam=false, skipTok="", skipUntil=0;
@@ -284,7 +297,17 @@ function viewStaff(){
         $("#res").appendChild(restore);
       }
       $("#res").scrollIntoView({behavior:"smooth",block:"start"});
-    }catch(e){ if(authFail(e)) return; $("#stOut").textContent=say(e); busy=false; idle(); }
+    }catch(e){
+      if(authFail(e)) return;
+      if(e.message==="network"){
+        $("#scanArea").innerHTML="";
+        $("#res").innerHTML=`<div class="panel stack" style="gap:12px"><b>Není signál</b><p class="small muted">Kartu teď nejde načíst. Razítko můžete uložit do telefonu a odešle se samo, až bude připojení.</p><button class="btn accent big" type="button" id="offStamp">Uložit razítko (kód ${short(args.p_token)})</button><button class="btn ghost" type="button" id="offBack">Zpět</button></div>`;
+        $("#offStamp").addEventListener("click",()=>{ stampQueue.add({slug:s.slug,token:args.p_token,count:1}); document.dispatchEvent(new CustomEvent("stempl-queue")); beep(true); reset(); });
+        $("#offBack").addEventListener("click",reset);
+        return;
+      }
+      $("#stOut").textContent=say(e); busy=false; idle();
+    }
   }
   function reset(){ busy=false; skipUntil=Date.now()+8000; $("#res").innerHTML=""; $("#found").innerHTML=""; $("#mCode").value=""; idle(); window.scrollTo(0,0); if(usedCam) startCam(); }
   $("#manual").addEventListener("submit",async e=>{

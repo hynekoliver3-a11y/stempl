@@ -66,6 +66,7 @@ async function viewOwner(tab){
       <div class="panel stack"><b>Plakátek s QR kódem</b><p class="small muted">Vytiskněte a dejte na pult, ke kase nebo na zrcadlo. QR vede na: <span class="mono" style="word-break:break-all">${esc(cardUrl)}</span></p>
         <canvas id="poster" width="1240" height="1748" class="poster" aria-label="Plakátek s QR kódem"></canvas>
         <div class="row-btns"><button class="btn primary" type="button" data-print="A4">Tisk / PDF – plakátek A4</button><button class="btn" type="button" data-print="A5">Plakátek A5</button><button class="btn" type="button" data-print="A6">Stojánek na stůl A6</button><a class="btn ghost" id="dl" download="stempl-${esc(b.slug)}.png" href="#">Stáhnout obrázek (PNG)</a><a class="btn ghost" href="#/k/${esc(b.slug)}">Otevřít kartu zákazníka</a><button class="btn ghost" type="button" id="copyCard">Kopírovat odkaz na kartu</button></div><div class="msg small" id="copyCardOut" role="status"></div>
+        <p class="small muted"><b>Tablet nebo starý telefon u kasy?</b> Otevřete na něm <a href="#/pult">Režim Pult</a>. Buď sám skenuje karty zákazníků, nebo ukazuje QR kód, který si zákazník naskenuje svým telefonem, a razítko se připíše samo.</p>
         <p class="small muted">Tlačítka tisku otevřou tiskové okno ve správné velikosti. Chcete soubor pro tiskárnu nebo copy centrum? V okně zvolte <b>Uložit jako PDF</b>. Tiskněte bez okrajů nebo v měřítku 100 %.</p></div>
     </div>
     <div id="t-plat" class="stack" hidden>

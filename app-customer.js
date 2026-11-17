@@ -59,6 +59,9 @@ async function viewJoin(slug){
     try{
       const c=await rpc("join_card",{p_slug:slug,p_name:$("#jName").value.trim()||null,p_email:email||null,p_consent:!!$("#jConsent").checked});
       cardStore.put(slug,c.token);
+      /* came from the counter QR: the stamp for this visit is added right after the card is created */
+      const claim=typeof pendingClaim==="function"?pendingClaim(slug):null;
+      if(claim) return claimFor(slug,c.token,claim);
       showCard(c.token,slug,c,true);
     }catch(err){
       btn.disabled=false;

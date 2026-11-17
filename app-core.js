@@ -227,6 +227,11 @@ function route(){
   return viewLanding();
 }
 addEventListener("hashchange",route);
+/* logo: on the landing page the address does not change, so scroll back to the top ourselves */
+document.addEventListener("click",e=>{
+  const a=e.target.closest&&e.target.closest("#topLogo"); if(!a) return;
+  if(["","#","#/"].includes(location.hash)){ e.preventDefault(); window.scrollTo({top:0,behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); }
+});
 /* header links that scroll to a section of the landing page */
 document.addEventListener("click",e=>{
   const a=e.target.closest&&e.target.closest("[data-jump]"); if(!a) return; e.preventDefault();

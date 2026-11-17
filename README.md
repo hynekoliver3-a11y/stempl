@@ -31,7 +31,7 @@ Po změně adresy webu:
 4. V `tools/build-obory.py` změnit `SITE` a spustit `python3 tools/build-obory.py` (přegeneruje oborové stránky, `sitemap.xml` a `robots.txt`). V `index.html` přepsat stejnou adresu v `canonical` a `og:` značkách.
 5. Přihlásit web do Google Search Console a odeslat `sitemap.xml`.
 
-Při každém nasazení zvyšte `CACHE` v `sw.js` (teď `stempl-v16`), jinak telefony s nainstalovanou aplikací uvidí starou verzi déle.
+Při každém nasazení zvyšte `CACHE` v `sw.js` (teď `stempl-v17`), jinak telefony s nainstalovanou aplikací uvidí starou verzi déle.
 
 ## Co doplnit před prodejem
 

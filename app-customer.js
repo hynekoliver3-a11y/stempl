@@ -31,7 +31,11 @@ function profileBlock(b){
     ${links.length?`<div class="row-btns">${links.join("")}</div>`:""}</div>`;
 }
 
-async function viewJoin(slug){
+const MONTHS_CS=["leden","únor","březen","duben","květen","červen","červenec","srpen","září","říjen","listopad","prosinec"];
+const MONTHS_EN=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const monthName=m=>(EN?MONTHS_EN:MONTHS_CS)[m-1];
+async function viewJoin(slug,ref){
+  ref=ref?String(ref).toUpperCase().replace(/[^0-9A-F]/g,"").slice(0,8):"";
   slug=slug.toLowerCase(); loading(L("Načítám kartu…","Loading the card…")); const my=routeSeq;
   const mine=cardStore.all()[slug];
   if(mine) return showCard(mine,slug);
@@ -47,9 +51,11 @@ async function viewJoin(slug){
   app.innerHTML=`<div class="wrap narrow stack" style="padding-block:28px">
     <div class="lcard" id="jc"><div class="cardhead">${logoSlot(b)}<div><div class="eyebrow">${L("Věrnostní karta","Loyalty card")}</div><div class="biz">${esc(b.name)}</div></div></div>
       <div class="rw"><span class="small muted">${n} ${stampWord(n)}</span><span class="small"><b>${esc(b.reward_text)}</b></span></div>
-      ${stampsGrid(b.welcome_stamp?1:0,n,-1)}
+      ${stampsGrid(b.welcome_stamp?1:0,n,-1,b.small_at)}
+      ${b.small_at&&b.small_text?`<p class="small" style="margin-top:12px">${L(`Po ${b.small_at} razítkách: <b>${esc(b.small_text)}</b>`,`After ${b.small_at} stamps: <b>${esc(b.small_text)}</b>`)}</p>`:""}
       ${b.rules_text?`<p class="small muted" style="margin-top:12px">${esc(b.rules_text)}</p>`:""}
     </div>
+    ${ref&&b.referral_on?`<div class="note ok">${L("Pozval vás kamarád. Po první návštěvě dostanete oba razítko navíc.","A friend invited you. After your first visit you both get an extra stamp.")}</div>`:""}
     <form class="form panel" id="joinForm" novalidate>
       <h2 style="font-size:1.6rem">${L("Získejte kartu zdarma","Get your free card")}</h2>
       <p class="muted small">${L(`${b.welcome_stamp?"První razítko máte hned. ":""}Za každou návštěvu razítko, po ${n}. ${esc(b.reward_text.toLowerCase())}. Nic se nestahuje a karta vám zůstane natrvalo.`,
@@ -87,7 +93,7 @@ async function viewJoin(slug){
     if(email&&!$("#jConsent").checked){ out.textContent=say({message:"consent_required"}); return; }
     const btn=e.target.querySelector("button"); btn.disabled=true;
     try{
-      const c=await rpc("join_card_v2",{p_slug:slug,p_name:$("#jName").value.trim()||null,p_email:email||null,p_consent:!!$("#jConsent").checked,p_marketing:!!(email&&$("#jMk").checked)});
+      const c=await rpc("join_card_v3",{p_slug:slug,p_name:$("#jName").value.trim()||null,p_email:email||null,p_consent:!!$("#jConsent").checked,p_marketing:!!(email&&$("#jMk").checked),p_ref:ref||null});
       cardStore.put(slug,c.token);
       /* came from the counter QR: the stamp for this visit is added right after the card is created */
       const claim=typeof pendingClaim==="function"?pendingClaim(slug):null;
@@ -127,13 +133,19 @@ async function showCard(token,slug,pre,fresh){
         <div class="cardhead">${logoSlot(b)}<div><div class="eyebrow">${L("Věrnostní karta","Loyalty card")}${last.name?" · "+esc(last.name):""}</div>
         <div class="biz">${esc(b.name)}</div></div></div>
         <div class="rw"><span class="small muted">${Math.min(last.stamps,n)} ${L("z","of")} ${n}${last.stamps>n?" (+"+(last.stamps-n)+L(" navíc"," extra")+")":""}</span><span class="small"><b>${esc(b.reward_text)}</b></span></div>
-        ${stampsGrid(last.stamps,n,isNewStamp?Math.min(last.stamps,n)-1:-1)}
+        ${stampsGrid(last.stamps,n,isNewStamp?Math.min(last.stamps,n)-1:-1,b.small_at&&!last.small_used?b.small_at:0)}
+        ${last.small_ready?`<div class="ready"><svg width="22" height="22" viewBox="0 0 100 100" style="color:currentColor;flex:none"><use href="#mark"/></svg>${L(`Malá odměna čeká: ${esc(b.small_text)}. Ukažte kartu obsluze.`,`A small reward is ready: ${esc(b.small_text)}. Show the card to the staff.`)}</div>`
+          :b.small_at&&b.small_text&&!last.small_used&&last.stamps<b.small_at?`<p class="small" style="margin-top:12px">${L(`Po ${b.small_at} razítkách: <b>${esc(b.small_text)}</b>`,`After ${b.small_at} stamps: <b>${esc(b.small_text)}</b>`)}</p>`:""}
+        ${last.birthday_ready?`<div class="ready"><svg width="22" height="22" viewBox="0 0 100 100" style="color:currentColor;flex:none"><use href="#mark"/></svg>${L(`Všechno nejlepší! Váš dárek: ${esc(b.birthday_text)}. Ukažte kartu obsluze.`,`Happy birthday! Your gift: ${esc(b.birthday_text)}. Show the card to the staff.`)}</div>`:""}
         ${last.reward_ready?`<div class="ready"><svg width="22" height="22" viewBox="0 0 100 100" style="color:currentColor;flex:none"><use href="#mark"/></svg>${L("Odměna čeká! Ukažte kartu obsluze.","Your reward is ready! Show the card to the staff.")}</div>`
           :`<p class="small muted" style="margin-top:14px">${EN?`${left} more ${stampWord(left)} to: ${esc(b.reward_text)}.`:`${left===1?"Poslední razítko a čeká vás":"Ještě "+left+" "+stampWord(left)+" a čeká vás"} ${esc(b.reward_text.toLowerCase())}.`}</p>`}
         <div class="qrbig"><button class="qr qrtap" type="button" id="qrTap" aria-label="${L("Zvětšit QR kód","Enlarge QR code")}">${qrSVG(BASE+"#/r/"+token)}</button><div class="small muted">${L("Ukažte obsluze k naskenování · ťuknutím zvětšíte","Show it to the staff to scan · tap to enlarge")}</div><div class="code">${short(token)}</div></div>
         ${b.rules_text?`<p class="small muted" style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--line2)"><b>${L("Pravidla","Rules")}:</b> ${esc(b.rules_text)}</p>`:""}
       </div>
       ${profileBlock(b)}
+      ${b.referral_on?`<div class="panel stack" style="gap:10px"><b>${L("Doporučte nás kamarádovi","Recommend us to a friend")}</b><p class="small muted">${L("Pošlete kamarádovi odkaz. Až u nás poprvé dostane razítko, připíšeme razítko navíc vám oběma.","Send a friend the link. When they get their first stamp here, you both get an extra stamp.")}${last.referrals?` ${L("Zatím jste pozvali","Friends invited so far")}: <b>${last.referrals}</b>.`:""}</p><button class="btn ghost" type="button" id="refBtn">${L("Poslat odkaz kamarádovi","Send the link to a friend")}</button><div class="msg small" id="refOut" role="status"></div></div>`:""}
+      ${b.birthday_text&&!last.birth_month?`<form class="panel stack" style="gap:10px" id="bdForm"><b>${L("Dárek k narozeninám","Birthday gift")}</b><p class="small muted">${L(`V měsíci narozenin od nás dostanete: ${esc(b.birthday_text)}. Stačí měsíc, den ani rok nepotřebujeme.`,`In your birthday month you get: ${esc(b.birthday_text)}. Just the month, no day or year needed.`)}</p><div class="two" style="grid-template-columns:1fr auto"><select class="input" id="bdMonth" aria-label="${L("Měsíc narozenin","Birthday month")}"><option value="">${L("Vyberte měsíc","Choose a month")}</option>${[...Array(12)].map((_,i)=>`<option value="${i+1}">${monthName(i+1)}</option>`).join("")}</select><button class="btn" type="submit">${L("Uložit","Save")}</button></div><div class="msg small" id="bdOut" role="status"></div></form>`
+        :b.birthday_text&&last.birth_month&&!last.birthday_ready?`<p class="small muted" style="text-align:center">${L(`Narozeninový dárek: ${monthName(last.birth_month)}`,`Birthday gift: ${monthName(last.birth_month)}`)}</p>`:""}
       ${last.has_email?"":`<div class="panel stack" style="gap:10px"><b>${L("Pojistěte si kartu","Keep your card safe")}</b><p class="small muted">${L("Přidejte e-mail a kartu i s razítky obnovíte na novém telefonu nebo po smazání prohlížeče.","Add your e-mail and you can restore the card with all stamps on a new phone or after clearing the browser.")}</p>
         <form class="form" id="emForm" novalidate><input class="input" id="emIn" aria-label="${L("E-mail pro obnovu karty","E-mail to restore the card")}" type="email" autocomplete="email" placeholder="${L("vas@email.cz","you@email.com")}" maxlength="120">
         <label class="check"><input type="checkbox" id="emCon"><span>${L(`Souhlasím, aby ${esc(b.name)} uložil můj e-mail pro věrnostní program. Souhlas můžu kdykoli odvolat.`,`I agree that ${esc(b.name)} stores my e-mail for the loyalty programme. I can withdraw this at any time.`)}</span></label>
@@ -165,6 +177,19 @@ async function showCard(token,slug,pre,fresh){
       }
       catch(err){ out.className="msg err"; out.textContent=say(err); }
     });
+    const rb=$("#refBtn");
+    if(rb) rb.addEventListener("click",async()=>{
+      const url=BASE+"#/k/"+b.slug+"/"+last.ref_code, text=L(`Sbírám razítka v ${b.name}. Založ si kartu přes tenhle odkaz a po první návštěvě dostaneme oba razítko navíc:`,`I collect stamps at ${b.name}. Get a card with this link and we both get an extra stamp after your first visit:`);
+      try{ if(navigator.share){ await navigator.share({title:b.name,text,url}); return; } }catch(e){ if(e&&e.name==="AbortError") return; }
+      copy(text+" "+url,$("#refOut"));
+    });
+    const bf=$("#bdForm");
+    if(bf) bf.addEventListener("submit",async e=>{
+      e.preventDefault(); const out=$("#bdOut"); const m=parseInt($("#bdMonth").value,10);
+      if(!m){ out.className="msg small err"; out.textContent=say({message:"bad_month"}); return; }
+      try{ last=await rpc("set_card_birth_month",{p_token:token,p_month:m}); render(false); }
+      catch(err){ out.className="msg small err"; out.textContent=say(err); }
+    });
     const mt=$("#mkToggle");
     if(mt) mt.addEventListener("change",async()=>{
       const out=$("#mkOut"); out.className="msg small";
@@ -189,7 +214,7 @@ async function showCard(token,slug,pre,fresh){
       const n=await rpc("get_card",{p_token:token});
       if(!n){ cardStore.drop(slug); return; }
       const stamped=n.total_stamps>last.total_stamps, redeemed=n.rewards_redeemed>last.rewards_redeemed;
-      if(stamped||redeemed||n.stamps!==last.stamps||n.has_email!==last.has_email||n.business.logo_v!==last.business.logo_v){ last=n; render(stamped); }
+      if(stamped||redeemed||n.stamps!==last.stamps||n.has_email!==last.has_email||n.business.logo_v!==last.business.logo_v||n.small_used!==last.small_used||n.birthday_ready!==last.birthday_ready){ last=n; render(stamped); }
       if(stamped||redeemed) closeQrFull();
       if(stamped) thanks(n,token);
       else if(redeemed){ openSheet(`<h2 id="sheetTitle" style="font-size:1.6rem">${L("Odměna je vaše!","Enjoy your reward!")}</h2><p class="muted">${L("Dobrou chuť. Sbírání začíná znovu.","Collecting starts again.")}</p><button class="btn primary" type="button" id="okBtn">${L("Díky","Thanks")}</button>`); $("#okBtn").addEventListener("click",closeSheet); }

@@ -19,7 +19,7 @@ const ERR_EN={
   program_paused:"This loyalty programme is paused right now.", too_soon:"A stamp was added just a moment ago.", daily_limit:"This card has had the most stamps allowed for today.",
   server_error:"Something went wrong on the server. Please try again.", wrong_business:"This card belongs to another business.", subscription_inactive:"This loyalty programme is paused right now.",
   mail_failed:"The e-mail could not be sent. Check the address and try again.", mail_not_configured:"E-mails are not switched on yet.", no_business:"Business not found.",
-  no_email:"Save your e-mail with the card first.", bad_token:"This link is not valid.",
+  no_email:"Save your e-mail with the card first.", birthday_locked:"The birthday month can be changed next year.", bad_month:"Please choose a month.", bad_token:"This link is not valid.",
   claim_invalid:"This QR code is no longer valid. Please scan the one on the counter now.", claim_used:"This QR code is no longer valid. Please scan the one on the counter now.", claim_expired:"This QR code is no longer valid. Please scan the one on the counter now."
 };
 const BASE=location.origin+location.pathname;
@@ -41,7 +41,10 @@ const ERR={
   bad_import:"Zadejte počet razítek z papírové kartičky (aspoň 1, méně než plná karta).", bad_limit:"Denní limit musí být 1 až 20.", bad_rules:"Pravidla mohou mít nejvýš 300 znaků.", bad_lead:"Vyplňte jméno, podnik a kontakt.",
   session_expired:"Přihlášení tohoto zařízení vypršelo nebo ho majitel odhlásil. Přihlaste se znovu.", no_session:"Tohle zařízení je přihlášené starým způsobem. Odhlaste se a přihlaste znovu.",
   import_too_late:"Převod z papírové kartičky jde jen u nové karty (do 7 dní a bez vydané odměny).",
-  no_email:"Nejdřív ke kartě uložte e-mail.", bad_subject:"Předmět musí mít 3 až 80 znaků.", bad_body:"Text zprávy musí mít 10 až 1000 znaků.", month_limit:"Tento měsíc už jste poslali 2 zprávy. Další půjde od prvního dne příštího měsíce.",
+  no_email:"Nejdřív ke kartě uložte e-mail.", small_used:"Malá odměna už byla v tomhle kole vydaná.", no_small_reward:"Podnik malou odměnu nemá nastavenou.",
+  not_birthday:"Zákazník nemá narozeniny tento měsíc.", birthday_used:"Narozeninový dárek už letos dostal.", no_birthday_gift:"Podnik narozeninový dárek nemá nastavený.",
+  birthday_locked:"Měsíc narozenin jde změnit až příští rok.", bad_month:"Vyberte měsíc.", small_incomplete:"Vyplňte u malé odměny počet razítek i co zákazník dostane.",
+  bad_small_at:"Malá odměna musí být dřív než velká (méně razítek).", bad_small_text:"Popis malé odměny je moc dlouhý.", bad_birthday_text:"Popis dárku je moc dlouhý.", bad_subject:"Předmět musí mít 3 až 80 znaků.", bad_body:"Text zprávy musí mít 10 až 1000 znaků.", month_limit:"Tento měsíc už jste poslali 2 zprávy. Další půjde od prvního dne příštího měsíce.",
   bad_web:"Zkontrolujte adresu webu, např. vase-kavarna.cz/menu.", bad_instagram:"Instagram zadejte jako @jmeno nebo odkaz na profil.", bad_phone:"Telefon zadejte jen číslicemi, třeba +420 777 123 456.", bad_logo:"Logo se nepodařilo uložit. Zkuste PNG nebo JPG.",
   bad_adjust:"Počet razítek musí být 0 až trojnásobek plné karty.", bad_spend:"Zadejte průměrnou útratu v korunách (1 až 100 000), nebo pole nechte prázdné.",
   cancel_subscription_first:"Nejdřív zrušte předplatné (Přehled → Předplatné), pak půjde účet smazat.",
@@ -112,15 +115,17 @@ function qrSVG(text){
   for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(q.dark(r,c)) d+=`M${c+m} ${r+m}h1v1h-1z`;
   return `<svg viewBox="0 0 ${n+2*m} ${n+2*m}" shape-rendering="crispEdges" role="img" aria-label="QR kód"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#111"/></svg>`;
 }
-function slotSVG(i,filled,needed,isNew){
+function slotSVG(i,filled,needed,isNew,small){
   const rot=((i*47)%26)-13;
   if(filled) return `<svg class="slot${isNew?" new":""}" viewBox="0 0 100 100" aria-hidden="true"><g transform="rotate(${rot} 50 50)" filter="url(#ink)" style="color:var(--accent-ink,var(--accent))"><circle cx="50" cy="50" r="41" fill="none" stroke="currentColor" stroke-width="6"/><circle cx="50" cy="50" r="32" fill="none" stroke="currentColor" stroke-width="2"/><path d="M33 52l12 12 23-25" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></g></svg>`;
   const last=i===needed-1;
+  /* a small gift marks where the smaller reward is waiting */
+  if(small&&!last) return `<svg class="slot" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="5 7" opacity=".3"/><path d="M33 46h34v22H33zM30 39h40v8H30zM50 39v29M50 39c-4-8-14-8-13-1 1 4 13 1 13 1zM50 39c4-8 14-8 13-1-1 4-13 1-13 1z" fill="none" stroke="currentColor" stroke-width="2.6" opacity=".55" stroke-linejoin="round"/></svg>`;
   return `<svg class="slot" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="5 7" opacity=".3"/>${last?'<path d="M50 31l5.6 11.6 12.8 1.8-9.3 9 2.2 12.7L50 60l-11.3 6.1 2.2-12.7-9.3-9 12.8-1.8z" fill="none" stroke="currentColor" stroke-width="2.5" opacity=".45" stroke-linejoin="round"/>':`<text class="num" x="50" y="58" text-anchor="middle">${i+1}</text>`}</svg>`;
 }
-function stampsGrid(stamps,needed,newIndex){
+function stampsGrid(stamps,needed,newIndex,smallAt){
   const n=Math.min(stamps,needed); let h="";
-  for(let i=0;i<needed;i++) h+=slotSVG(i,i<n,needed,i===newIndex);
+  for(let i=0;i<needed;i++) h+=slotSVG(i,i<n,needed,i===newIndex,smallAt&&i===smallAt-1);
   const cls=needed%5===0?" n"+needed:"";
   return `<div class="stamps${cls}" role="img" aria-label="${n} ${L("z","of")} ${needed} ${L("razítek","stamps")}">${h}</div>`;
 }
@@ -197,7 +202,7 @@ function route(){
   $("#topLogin").hidden=cta.hidden||!!ss;
   if(ss){ cta.href=ss.role==="owner"?"#/prehled":"#/obsluha"; cta.textContent=ss.role==="owner"?"Přehled":"Obsluha"; } else { cta.href="#/registrace"; cta.textContent="Vyzkoušet zdarma"; }
   switch(h[0]){
-    case "k": if(h[1]) return viewJoin(h[1]); break;
+    case "k": if(h[1]) return viewJoin(h[1],h[2]); break;
     case "c": if(h[1]) return viewCardToken(h[1]); break;
     case "r": if(h[1]) return viewScanTarget(h[1]); break;
     case "moje": return viewMyCards();

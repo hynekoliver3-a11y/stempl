@@ -268,7 +268,7 @@ Deno.serve(async (req) => {
             `${b.name} za 7 dní: ${b.stamps} razítek, ${b.new_cards} nových zákazníků, ${b.redeems} odměn, ${b.reviews} recenzí.`).then(() => sent.push("s:" + b.slug)).catch((e) => console.error("summary", b.slug, e));
         }
         /* customer reminders and owners' messages (only customers who agreed to news) */
-        let mk = { reminders: 0, broadcast: 0 };
+        let mk = { reminders: 0, broadcast: 0, birthdays: 0 };
         try {
           const m = await rpc("svc_marketing_jobs", {});
           for (const r of m.reminders ?? []) {
@@ -297,6 +297,18 @@ Deno.serve(async (req) => {
             await rpc("svc_broadcast_done", { p_id: bc.id, p_count: n }).catch((e) => console.error("broadcast done", e));
           }
         } catch (e) { console.error("marketing", e); }
+        /* birthday gift, at the start of the birthday month (only with news consent, once a year) */
+        try {
+          const bd = await rpc("svc_birthday_jobs", {});
+          for (const r of bd ?? []) {
+            const card = `${APP_URL}#/c/${r.token}`;
+            await sendMarketing({ to: r.email, business: r.business, replyTo: r.reply_to, unsub: r.unsub,
+              subject: `${r.business}: dárek k narozeninám`, title: "Všechno nejlepší!",
+              html: `<p>${r.name ? esc(r.name) + ", t" : "T"}ento měsíc na vás v <b>${esc(r.business)}</b> čeká narozeninový dárek: <b>${esc(r.gift)}</b>. Stačí ukázat kartu obsluze.</p>${btn(card, "Otevřít kartu")}`,
+              text: `${r.business}: tento měsíc na vás čeká narozeninový dárek – ${r.gift}. Karta: ${card}`,
+            }).then(() => mk.birthdays++).catch((e) => console.error("birthday", e));
+          }
+        } catch (e) { console.error("birthdays", e); }
         await rpc("svc_log_job", { p_job: "daily", p_ok: true, p_detail: { sent, marketing: mk, trial_3d: (jobs.trial_3d ?? []).length, trial_end: (jobs.trial_end ?? []).length, summary: (jobs.summary ?? []).length } }).catch((e) => console.error("log job", e));
         return json(200, { ok: true, sent });
       }

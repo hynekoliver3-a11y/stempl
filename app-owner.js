@@ -124,6 +124,16 @@ async function viewOwner(tab){
         <button class="btn primary" type="submit">Uložit vizitku</button>
         <div class="msg" id="pOut" role="status"></div>
       </form>
+      <form class="form panel" id="extForm" novalidate>
+        <b>Odměny navíc</b>
+        <p class="small muted">Všechno je nepovinné. Zákazníci to uvidí na kartě a obsluze se objeví tlačítko pro vydání.</p>
+        <div class="two"><label class="field">Malá odměna po kolika razítcích <small>méně než ${b.stamps_needed}</small><input class="input" id="xSmallAt" type="number" min="1" max="${b.stamps_needed-1}" value="${b.small_at||""}" placeholder="např. ${Math.max(1,Math.floor(b.stamps_needed/2))}"></label>
+          <label class="field">Co dostane<input class="input" id="xSmallText" maxlength="80" value="${esc(b.small_text||"")}" placeholder="Malá káva zdarma"></label></div>
+        <label class="field">Narozeninový dárek <small>zákazník si na kartě zadá měsíc narozenin; dárek jednou za rok</small><input class="input" id="xBday" maxlength="80" value="${esc(b.birthday_text||"")}" placeholder="Dortík zdarma"></label>
+        <label class="check"><input type="checkbox" id="xRef"${b.referral_on?" checked":""}><span>Doporuč kamaráda: zákazník pošle odkaz, a když kamarád přijde poprvé, oba dostanou razítko navíc (nejvýš 5 takových razítek měsíčně na kartu).</span></label>
+        <button class="btn primary" type="submit">Uložit odměny navíc</button>
+        <div class="msg" id="xOut" role="status"></div>
+      </form>
       <form class="form panel" id="optForm" novalidate>
         <b>Pravidla razítek</b>
         <label class="field">Nejvíc razítek na jednu kartu za den <small>ochrana proti falešným razítkům; při hodnotě 1 obsluze zmizí tlačítko +2</small><input class="input" id="oLimit" type="number" min="1" max="20" value="${b.daily_stamp_limit||2}" required></label>
@@ -177,7 +187,7 @@ async function viewOwner(tab){
   $$("[data-go]").forEach(t=>t.addEventListener("click",()=>show(t.dataset.go)));
   $("#copyCard").addEventListener("click",()=>copy(cardUrl,$("#copyCardOut")));
   $("#chart").innerHTML=`<div style="overflow-x:auto">${barChart(st.daily||[])}</div>`;
-  const KIND={import:["Převod z papíru","stamp"],adjust:["Oprava majitelem",""],join:["Nová karta",""],stamp:["Razítko","stamp"],redeem:["Odměna vydána","redeem"],review_click:["Otevřel recenzi","review"]};
+  const KIND={small:["Malá odměna","redeem"],birthday:["Narozeninový dárek","redeem"],referral:["Razítko za doporučení","stamp"],welcome:["Uvítací razítko","stamp"],import:["Převod z papíru","stamp"],adjust:["Oprava majitelem",""],join:["Nová karta",""],stamp:["Razítko","stamp"],redeem:["Odměna vydána","redeem"],review_click:["Otevřel recenzi","review"]};
   const feed=st.recent||[];
   $("#feed").innerHTML=feed.length?feed.map(e=>{ const k=KIND[e.kind]||[e.kind,""]; return `<li><span><span class="pill ${k[1]}">${k[0]}${(e.kind==="import"||e.kind==="adjust")&&e.qty?" "+(e.qty>0?"+":"")+e.qty:""}</span> ${e.name?esc(e.name):e.card?'<span class="mono muted">'+esc(e.card)+'</span>':'<span class="muted">smazaná karta</span>'}${e.by&&e.kind!=="adjust"?' <span class="muted small">· '+esc(e.by)+'</span>':""}</span><span class="muted">${fmtDT(e.at)}</span></li>`; }).join(""):`<li class="muted">Zatím nic. První zákazník se objeví po naskenování QR na pultu.</li>`;
   // customers
@@ -197,7 +207,7 @@ async function viewOwner(tab){
     openSheet(`<p class="muted">Načítám…</p>`);
     try{
       const c=await rpc("owner_customer",{p_slug:s.slug,p_code:s.code,p_card:id});
-      const HK={import:"Převod z papírové kartičky",adjust:"Oprava počtu razítek majitelem",join:"Získal(a) kartu",stamp:"Návštěva (razítko)",redeem:"Vydaná odměna",review_click:"Otevřel(a) recenzi"};
+      const HK={small:"Malá odměna",birthday:"Narozeninový dárek",referral:"Razítko navíc za doporučení",welcome:"Uvítací razítko",import:"Převod z papírové kartičky",adjust:"Oprava počtu razítek majitelem",join:"Získal(a) kartu",stamp:"Návštěva (razítko)",redeem:"Vydaná odměna",review_click:"Otevřel(a) recenzi"};
       openSheet(`<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><h2 id="sheetTitle" style="font-size:1.6rem">${c.name?esc(c.name):"Zákazník"}</h2><span class="mono small muted">${short(c.token)}</span></div>
         ${c.email?`<p class="small muted">${esc(c.email)}</p>`:""}
         <div style="--accent:${esc(b.accent)}">${stampsGrid(c.stamps,b.stamps_needed,-1)}</div>
@@ -253,6 +263,15 @@ async function viewOwner(tab){
     catch(err){ if(authFail(err)) return; $("#devOut").className="msg err"; $("#devOut").textContent=say(err); }
   });
   let devLoaded=false, mkLoaded=false, mkInfo=null;
+  $("#extForm").addEventListener("submit",async e=>{
+    e.preventDefault(); const out=$("#xOut"); out.className="msg";
+    if(demo.on){ out.className="msg err"; out.textContent=ERR.demo_mode; return; }
+    const at=$("#xSmallAt").value.trim()?parseInt($("#xSmallAt").value,10):null, st=$("#xSmallText").value.trim()||null;
+    if((at===null)!==(st===null)){ out.className="msg err"; out.textContent=ERR.small_incomplete; return; }
+    if(at!==null&&!(at>=1&&at<b.stamps_needed)){ out.className="msg err"; out.textContent=ERR.bad_small_at; return; }
+    try{ const r=await rpc("owner_set_extras",{p_slug:s.slug,p_code:s.code,p_small_at:at,p_small_text:st,p_birthday_text:$("#xBday").value.trim()||null,p_referral:$("#xRef").checked}); Object.assign(b,r); out.className="msg ok"; out.textContent="Uloženo."; }
+    catch(err){ if(authFail(err)) return; out.className="msg err"; out.textContent=say(err); }
+  });
   async function loadMarketing(){
     mkLoaded=true;
     try{

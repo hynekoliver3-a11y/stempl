@@ -75,6 +75,8 @@ function staffCardPanel(host,s,cur,opts){
       <div class="kv"><div><b>${cur.total_stamps}</b><span>návštěv celkem</span></div><div><b>${Math.min(cur.stamps,n)}/${n}</b><span>na kartě</span></div><div><b>${cur.rewards_redeemed}</b><span>vydaných odměn</span></div></div>
       <p class="small muted">Karta od ${fmtD(cur.created_at)} · poslední návštěva ${cur.last_stamp_at?fmtDT(cur.last_stamp_at):"zatím žádná"}</p>
       ${cur.reward_ready?`<button class="btn accent big" id="redeemBtn" type="button">Vydat odměnu: ${esc(b.reward_text)}</button>`:""}
+      ${cur.small_ready?`<button class="btn accent" id="smallBtn" type="button">Vydat malou odměnu: ${esc(b.small_text)}</button>`:""}
+      ${cur.birthday_ready?`<button class="btn accent" id="bdayBtn" type="button">Narozeniny! Vydat dárek: ${esc(b.birthday_text)}</button>`:""}
       <div style="display:grid;grid-template-columns:1fr ${multi?"auto":""};gap:10px">
         <button class="btn ${cur.reward_ready?"":"accent"} big" id="stampBtn" type="button"${b.active===false?" disabled":""}>Přidat razítko</button>
         ${multi?`<button class="btn big" id="stamp2Btn" type="button" style="width:auto;padding:0 18px"${b.active===false?" disabled":""} aria-label="Přidat 2 razítka">+2</button>`:""}
@@ -102,6 +104,8 @@ function staffCardPanel(host,s,cur,opts){
       });
     });
     if(cur.reward_ready) $("#redeemBtn",host).addEventListener("click",()=>act("redeem_reward"));
+    if(cur.small_ready) $("#smallBtn",host).addEventListener("click",()=>act("redeem_small"));
+    if(cur.birthday_ready) $("#bdayBtn",host).addEventListener("click",()=>act("redeem_birthday"));
     if(canUndo) $("#undoBtn",host).addEventListener("click",()=>act("undo_stamp"));
     if(opts.next) $("#nextBtn",host).addEventListener("click",opts.next);
   };
@@ -111,9 +115,9 @@ function staffCardPanel(host,s,cur,opts){
       const args={p_slug:s.slug,p_code:s.code,p_token:cur.token}; if(count) args.p_count=count;
       /* stamps and rewards carry the staff member's name, so the owner sees who gave them */
       const V2={stamp_card:"stamp_card_v2",redeem_reward:"redeem_reward_v2"};
-      if(V2[fn]) args.p_by=s.by||null;
+      if(V2[fn]||fn==="redeem_small"||fn==="redeem_birthday") args.p_by=s.by||null;
       cur=await rpc(V2[fn]||fn,args);
-      const what=fn==="stamp_card"?(count>1?count+" razítka přidána":"Razítko přidáno"):fn==="redeem_reward"?"Odměna vydána":((cur.undone||1)>1?"Razítka vrácena":"Razítko vráceno");
+      const what=fn==="stamp_card"?(count>1?count+" razítka přidána":"Razítko přidáno"):fn==="redeem_reward"?"Odměna vydána":fn==="redeem_small"?"Malá odměna vydána":fn==="redeem_birthday"?"Dárek vydán":((cur.undone||1)>1?"Razítka vrácena":"Razítko vráceno");
       host.innerHTML=`<div class="done"><svg viewBox="0 0 100 100"><use href="#mark"/></svg><b style="font-size:1.4rem">${what}</b><span>${Math.min(cur.stamps,cur.business.stamps_needed)} z ${cur.business.stamps_needed} · ${visits(cur.total_stamps)}${cur.reward_ready?" · odměna připravená":""}</span></div>
         <div class="row-btns" style="margin-top:12px"><button class="btn ghost" type="button" id="backCard">Zpět na kartu</button>${opts.next?`<button class="btn primary" type="button" id="nextAfter">Další zákazník</button>`:""}</div>
         ${opts.next?"":`<p class="small muted" style="margin-top:10px">Dalšího zákazníka naskenujte znovu fotoaparátem.</p>`}`;

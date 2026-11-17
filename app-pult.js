@@ -143,7 +143,7 @@ function pultScan(s,facing){
         timer=setTimeout(done,20000);
         return;
       }
-      pultResult(out,"ok",`Razítko přidáno${c.name?", "+esc(c.name):""}`,`${Math.min(c.stamps,n)} z ${n} · ještě ${Math.max(0,n-c.stamps)} do odměny`);
+      pultResult(out,"ok",`Razítko přidáno${c.name?", "+esc(c.name):""}`,`${Math.min(c.stamps,n)} z ${n} · ještě ${Math.max(0,n-c.stamps)} do odměny${c.small_ready?" · malá odměna čeká: "+esc(c.business.small_text):""}${c.birthday_ready?" · má narozeniny: "+esc(c.business.birthday_text):""}`);
     }catch(e){
       if(authFail(e)) return;
       if(e.message==="network"){ stampQueue.add({slug:s.slug,token:tok,count:1}); beep(true); pultResult(out,"warn","Razítko uloženo","Není signál. Odešle se samo, až bude připojení."); document.dispatchEvent(new CustomEvent("stempl-queue")); }

@@ -289,6 +289,19 @@ body.noscroll{overflow:hidden}
   .pult-help{color:#111}
   .input{background:#15130f;color:var(--ink)}
   .cbar{background:#2a261f!important;color:var(--ink)!important}
+  /* the dark bands (hero, pricing, call to action) stay dark panels with light text instead of turning into light boxes */
+  .hero{background:radial-gradient(120% 90% at 88% 18%,rgba(217,72,15,.3),rgba(217,72,15,0) 58%),#221e18;color:#f3efe6;border:1px solid var(--line)}
+  .band{background:radial-gradient(90% 120% at 10% 100%,rgba(217,72,15,.26),rgba(217,72,15,0) 60%),#221e18;color:#f3efe6;border:1px solid var(--line)}
+  .rules,.plan.hi{background:#221e18;color:#f3efe6;border:1px solid var(--line2)}
+  .hero .eyebrow,.hero .lede,.hero .fine,.trust,.band p,.plan.hi .eyebrow,.plan.hi .muted,.rules .eyebrow{color:#b9b1a3!important}
+  .trust{border-top-color:rgba(243,239,230,.14)}
+  .hero .btn.light,.band .btn.light,.plan.hi .btn.light{background:#f3efe6;border-color:#f3efe6;color:#14120e}
+  .btn.onink{border-color:rgba(243,239,230,.32);color:#f3efe6}
+  .section.alt{background:#1a1813}
+  .phone{background:#000}
+  .rules p{color:#d9d2c4}
+  .versus>div.win{background:#2b2620;color:#f3efe6;border-color:rgba(255,138,76,.45)}
+  .versus .win li{color:#d9d2c4}
 }
 body.pultmode .top,body.pultmode .foot{display:none}
 .pult{min-height:100vh;display:grid;grid-template-rows:auto auto 1fr;gap:14px;padding:calc(12px + env(safe-area-inset-top)) 16px 16px;max-width:900px;margin:0 auto}

@@ -80,6 +80,18 @@ async function send(to: string, subject: string, title: string, html: string, te
   await mailer().sendMail({ from: MAIL_FROM, to, subject, html: layout(title, html), text });
 }
 
+/* marketing e-mail on behalf of a business: its name as sender, replies go to the owner, unsubscribe in every mail */
+async function sendMarketing(m: { to: string; business: string; replyTo?: string; unsub: string; subject: string; title: string; html: string; text: string }) {
+  const unsubUrl = `${APP_URL}#/odhlasit/${m.unsub}`;
+  const from = SMTP_USER ? `${m.business.replace(/["<>]/g, "")} přes Štempl <${SMTP_USER}>` : MAIL_FROM;
+  const foot = `<p style="font-size:12px;color:#6e675d;margin-top:18px">Tento e-mail dostáváte, protože jste u ${esc(m.business)} souhlasili s novinkami a připomínkami k věrnostní kartě. <a href="${esc(unsubUrl)}">Odhlásit z novinek</a> (karta i razítka zůstanou).</p>`;
+  await mailer().sendMail({
+    from, to: m.to, subject: m.subject, replyTo: m.replyTo || undefined,
+    headers: { "List-Unsubscribe": `<${unsubUrl}>` },
+    html: layout(m.title, m.html + foot), text: `${m.text}\n\nOdhlásit z novinek: ${unsubUrl}`,
+  });
+}
+
 function clientIp(req: Request) {
   return (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || null;
 }
@@ -255,7 +267,37 @@ Deno.serve(async (req) => {
              ${btn(`${APP_URL}#/prehled`, "Otevřít přehled")}<p style="font-size:12px;color:#6e675d">Souhrn můžete vypnout v Přehled → Nastavení.</p>`,
             `${b.name} za 7 dní: ${b.stamps} razítek, ${b.new_cards} nových zákazníků, ${b.redeems} odměn, ${b.reviews} recenzí.`).then(() => sent.push("s:" + b.slug)).catch((e) => console.error("summary", b.slug, e));
         }
-        await rpc("svc_log_job", { p_job: "daily", p_ok: true, p_detail: { sent, trial_3d: (jobs.trial_3d ?? []).length, trial_end: (jobs.trial_end ?? []).length, summary: (jobs.summary ?? []).length } }).catch((e) => console.error("log job", e));
+        /* customer reminders and owners' messages (only customers who agreed to news) */
+        let mk = { reminders: 0, broadcast: 0 };
+        try {
+          const m = await rpc("svc_marketing_jobs", {});
+          for (const r of m.reminders ?? []) {
+            const card = `${APP_URL}#/c/${r.token}`;
+            const almost = r.kind === "almost";
+            const hello = r.name ? `${esc(r.name)}, ` : "";
+            await sendMarketing({ to: r.email, business: r.business, replyTo: r.reply_to, unsub: r.unsub,
+              subject: almost ? `${r.business}: chybí vám 1 razítko` : `${r.business}: dlouho jsme vás neviděli`,
+              title: almost ? "Chybí vám jedno razítko" : "Dlouho jsme vás neviděli",
+              html: almost
+                ? `<p>${hello}na kartě v <b>${esc(r.business)}</b> máte ${r.stamps} z ${r.needed} razítek. Při příští návštěvě vás čeká <b>${esc(r.reward)}</b>.</p>${btn(card, "Otevřít kartu")}`
+                : `<p>${hello}v <b>${esc(r.business)}</b> jsme vás už nějakou dobu neviděli. Na kartě máte ${r.stamps} z ${r.needed} razítek a sbírání pokračuje, kdykoli se zastavíte.</p>${btn(card, "Otevřít kartu")}`,
+              text: almost ? `${r.business}: máte ${r.stamps} z ${r.needed} razítek, příště vás čeká ${r.reward}. Karta: ${card}` : `${r.business}: dlouho jsme vás neviděli. Karta: ${card}`,
+            }).then(() => mk.reminders++).catch((e) => console.error("reminder", e));
+          }
+          for (const bc of m.broadcasts ?? []) {
+            let n = 0;
+            for (const r of bc.recipients ?? []) {
+              await sendMarketing({ to: r.email, business: bc.business, replyTo: bc.reply_to, unsub: r.unsub,
+                subject: `${bc.business}: ${bc.subject}`, title: bc.subject,
+                html: `<p style="white-space:pre-wrap;line-height:1.55">${esc(bc.body)}</p>${btn(`${APP_URL}#/c/${r.token}`, "Otevřít věrnostní kartu")}`,
+                text: `${bc.body}\n\nKarta: ${APP_URL}#/c/${r.token}`,
+              }).then(() => n++).catch((e) => console.error("broadcast", e));
+            }
+            mk.broadcast += n;
+            await rpc("svc_broadcast_done", { p_id: bc.id, p_count: n }).catch((e) => console.error("broadcast done", e));
+          }
+        } catch (e) { console.error("marketing", e); }
+        await rpc("svc_log_job", { p_job: "daily", p_ok: true, p_detail: { sent, marketing: mk, trial_3d: (jobs.trial_3d ?? []).length, trial_end: (jobs.trial_end ?? []).length, summary: (jobs.summary ?? []).length } }).catch((e) => console.error("log job", e));
         return json(200, { ok: true, sent });
       }
 

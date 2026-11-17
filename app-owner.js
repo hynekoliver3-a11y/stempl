@@ -54,6 +54,17 @@ async function viewOwner(tab){
       <div class="panel"><b>Poslední aktivita</b><ul class="feed" id="feed" style="margin-top:8px"></ul></div>
     </div>
     <div id="t-cust" class="stack" hidden>
+      <div class="panel stack" style="gap:12px" id="mkPanel">
+        <b>Zprávy zákazníkům</b>
+        <p class="small muted">Zpráva přijde e-mailem jen zákazníkům, kteří s novinkami souhlasili (<b id="mkAud">…</b>). Nejvýš 2 zprávy za měsíc, aby lidé neodcházeli. Odesílá se každé ráno v 8:05.</p>
+        <form class="form" id="bcForm" novalidate>
+          <label class="field">Předmět<input class="input" id="bcSub" maxlength="80" placeholder="Tento týden dvojitá razítka"></label>
+          <label class="field">Text<textarea class="input" id="bcBody" rows="4" maxlength="1000" placeholder="Každé úterý od 14 do 16 hodin dáváme dvě razítka za jednu návštěvu. Těšíme se na vás!"></textarea></label>
+          <button class="btn primary" type="submit" id="bcSend">Odeslat zítra ráno</button>
+          <div class="msg" id="bcOut" role="status"></div>
+        </form>
+        <ul class="feed" id="bcList"></ul>
+      </div>
       <div class="panel stack" style="gap:12px">
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between"><b>Zákazníci (${st.customers})</b><button class="btn ghost sm" id="csvBtn" type="button">Stáhnout do Excelu (CSV)</button></div>
         <input class="input" id="cq" type="search" placeholder="Hledat jméno, e-mail nebo kód karty" aria-label="Hledat zákazníka">
@@ -116,6 +127,7 @@ async function viewOwner(tab){
       <form class="form panel" id="optForm" novalidate>
         <b>Pravidla razítek</b>
         <label class="field">Nejvíc razítek na jednu kartu za den <small>ochrana proti falešným razítkům; při hodnotě 1 obsluze zmizí tlačítko +2</small><input class="input" id="oLimit" type="number" min="1" max="20" value="${b.daily_stamp_limit||2}" required></label>
+        <label class="check"><input type="checkbox" id="oRemind"><span>Připomínky zákazníkům: e-mail „Chybí vám 1 razítko“ (po 5 dnech) a „Dlouho jsme vás neviděli“ (po 30 dnech). Jen lidem, kteří s novinkami souhlasili, nejvýš jednou za měsíc.</span></label>
         <label class="check"><input type="checkbox" id="oWelcome"${b.welcome_stamp?" checked":""}><span>Uvítací razítko: nový zákazník dostane první razítko hned při získání karty. Rozdělanou kartu lidé dokončují ochotněji než prázdnou.</span></label>
         <label class="field">Průměrná útrata zákazníka v Kč <small>nepovinné; z ní spočítáme, kolik vám vynášejí vracející se zákazníci</small><input class="input" id="oSpend" type="number" inputmode="numeric" min="1" max="100000" value="${b.avg_spend||""}" placeholder="např. 90"></label>
         <label class="field">Pravidla pro zákazníky <small>nepovinné, zobrazí se na kartě – např. za co je razítko a jestli razítka propadají</small><textarea class="input" id="oRules" rows="3" maxlength="300" placeholder="Razítko za každý nápoj nad 60 Kč. Razítka nepropadají.">${esc(b.rules_text||"")}</textarea></label>
@@ -156,7 +168,8 @@ async function viewOwner(tab){
     $$(".tabs button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.t===k?"true":"false"));
     ["stats","cust","qr","plat","set"].forEach(t=>$("#t-"+t).hidden=t!==k);
     if(k==="qr") drawPoster(b,cardUrl);
-    if(k==="cust"&&!custLoaded) loadCustomers("");
+    if(k==="cust"&&!custLoaded){ loadCustomers(""); loadMarketing(); }
+    if(k==="set"&&!mkLoaded) loadMarketing();
     if(k==="set"&&!devLoaded){ devLoaded=true; loadDevices(); }
     history.replaceState(null,"",P+(k==="stats"?"":"/"+k));
   };
@@ -239,7 +252,36 @@ async function viewOwner(tab){
     try{ const r=await rpc("owner_revoke_session",{p_slug:s.slug,p_code:s.code,p_id:null,p_all_staff:true}); $("#devOut").className="msg ok"; $("#devOut").textContent="Odhlášeno zařízení: "+r.revoked+"."; loadDevices(); }
     catch(err){ if(authFail(err)) return; $("#devOut").className="msg err"; $("#devOut").textContent=say(err); }
   });
-  let devLoaded=false;
+  let devLoaded=false, mkLoaded=false, mkInfo=null;
+  async function loadMarketing(){
+    mkLoaded=true;
+    try{
+      const m=demo.on?{reminders_on:true,audience:9,month_used:1,month_limit:2,list:[{subject:"Nové dezerty",body:"Od pondělí máme nové dezerty.",status:"sent",recipients:9,created_at:new Date(Date.now()-6*864e5).toISOString(),sent_at:new Date(Date.now()-5*864e5).toISOString()}]}
+        :await rpc("owner_marketing",{p_slug:s.slug,p_code:s.code});
+      mkInfo=m; $("#mkAud").textContent=m.audience+" "+plural(m.audience,"zákazník","zákazníci","zákazníků");
+      $("#oRemind").checked=!!m.reminders_on;
+      const left=Math.max(0,m.month_limit-m.month_used);
+      $("#bcSend").disabled=!left||!m.audience; $("#bcSend").textContent=left?(m.audience?"Odeslat zítra ráno":"Zatím nikdo nesouhlasil s novinkami"):"Tento měsíc už jsou 2 zprávy odeslané";
+      const ST={queued:"čeká na odeslání",sending:"odesílá se",sent:"odesláno"};
+      $("#bcList").innerHTML=m.list.map(x=>`<li><span><b>${esc(x.subject)}</b><br><span class="small muted">${esc(x.body.slice(0,90))}${x.body.length>90?"…":""}</span></span><span class="muted small">${ST[x.status]||x.status}${x.recipients!=null?" · "+x.recipients+" lidí":""}<br>${fmtD(x.created_at)}</span></li>`).join("");
+    }catch(err){ if(authFail(err)) return; $("#bcOut").className="msg err"; $("#bcOut").textContent=say(err); }
+  }
+  $("#bcForm").addEventListener("submit",async e=>{
+    e.preventDefault(); const out=$("#bcOut"); out.className="msg";
+    if(demo.on){ out.className="msg err"; out.textContent=ERR.demo_mode; return; }
+    const sub=$("#bcSub").value.trim(), body=$("#bcBody").value.trim();
+    if(sub.length<3){ out.className="msg err"; out.textContent=ERR.bad_subject; return; }
+    if(body.length<10){ out.className="msg err"; out.textContent=ERR.bad_body; return; }
+    if(!confirm("Odeslat zprávu „"+sub+"“ "+(mkInfo?mkInfo.audience+" zákazníkům":"zákazníkům")+" zítra ráno?")) return;
+    try{ await rpc("owner_broadcast",{p_slug:s.slug,p_code:s.code,p_subject:sub,p_body:body}); $("#bcSub").value=""; $("#bcBody").value=""; out.className="msg ok"; out.textContent="Zpráva je připravená, odejde zítra v 8:05."; loadMarketing(); }
+    catch(err){ if(authFail(err)) return; out.className="msg err"; out.textContent=say(err); }
+  });
+  $("#oRemind").addEventListener("change",async e=>{
+    const out=$("#optOut"); out.className="msg";
+    if(demo.on){ out.className="msg err"; out.textContent=ERR.demo_mode; e.target.checked=!e.target.checked; return; }
+    try{ await rpc("owner_set_reminders",{p_slug:s.slug,p_code:s.code,p_on:e.target.checked}); out.className="msg ok"; out.textContent=e.target.checked?"Připomínky zapnuté.":"Připomínky vypnuté."; }
+    catch(err){ e.target.checked=!e.target.checked; if(authFail(err)) return; out.className="msg err"; out.textContent=say(err); }
+  });
   /* logo: shrunk in the browser to at most 256 px, stored as a small image */
   let newLogo=null;
   if(b.logo_v) bizLogo(b).then(d=>{ if(d&&$("#logoPrev")) $("#logoPrev").innerHTML=`<img src="${d}" alt="Logo">`; });

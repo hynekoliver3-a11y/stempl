@@ -23,7 +23,7 @@ Po změně adresy webu:
 2. Ve Stripe změnit návratovou adresu platebních odkazů na `…/#/zaplaceno`.
 3. Vytisknout nové plakátky: QR kódy i uložené karty jsou vázané na adresu webu.
 
-Při každém nasazení zvyšte `CACHE` v `sw.js` (teď `stempl-v13`), jinak telefony s nainstalovanou aplikací uvidí starou verzi déle.
+Při každém nasazení zvyšte `CACHE` v `sw.js` (teď `stempl-v14`), jinak telefony s nainstalovanou aplikací uvidí starou verzi déle.
 
 ## Co doplnit před prodejem
 

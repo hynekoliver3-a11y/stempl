@@ -57,6 +57,7 @@ async function viewJoin(slug){
       <label class="field">${L("Křestní jméno","First name")} <small>${L("nepovinné, ať vás obsluha pozná","optional, so the staff know you")}</small><input class="input" id="jName" autocomplete="given-name" maxlength="60"></label>
       <label class="field">E-mail <small>${L("doporučujeme – bez něj se karta při výměně telefonu nebo vymazání prohlížeče ztratí","recommended – without it the card is lost when you change phones or clear the browser")}</small><input class="input" id="jEmail" type="email" autocomplete="email" maxlength="120"></label>
       <label class="check" id="consentRow" hidden><input type="checkbox" id="jConsent"><span>${L(`Souhlasím, aby ${esc(b.name)} uložil můj e-mail pro věrnostní program. Souhlas můžu kdykoli odvolat.`,`I agree that ${esc(b.name)} stores my e-mail for the loyalty programme. I can withdraw this at any time.`)} <a href="#/soukromi">${L("Ochrana údajů","Privacy")}</a></span></label>
+      <label class="check" id="mkRow" hidden><input type="checkbox" id="jMk"><span>${L("Pošlete mi občas novinky a připomínku, když mi chybí razítko (nejvýš 2× měsíčně, odhlásit jde jedním klepnutím).","Send me news and a reminder when I am one stamp away (at most twice a month, one tap to unsubscribe).")}</span></label>
       <button class="btn accent big" type="submit">${L("Získat kartu","Get the card")}</button>
       <div class="msg err" id="jOut" role="status"></div>
     </form>
@@ -71,7 +72,7 @@ async function viewJoin(slug){
     </div>
     </div>`;
   setAccent($("#jc"),b.accent); setAccent($("#joinForm"),b.accent); fillLogos(b);
-  const em=$("#jEmail"); em.addEventListener("input",()=>{ $("#consentRow").hidden=!em.value.trim(); });
+  const em=$("#jEmail"); em.addEventListener("input",()=>{ $("#consentRow").hidden=$("#mkRow").hidden=!em.value.trim(); });
   const recover=async(email,out)=>{
     out.className="msg small";
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ out.className="msg small err"; out.textContent=say({message:"bad_email"}); return; }
@@ -86,7 +87,7 @@ async function viewJoin(slug){
     if(email&&!$("#jConsent").checked){ out.textContent=say({message:"consent_required"}); return; }
     const btn=e.target.querySelector("button"); btn.disabled=true;
     try{
-      const c=await rpc("join_card",{p_slug:slug,p_name:$("#jName").value.trim()||null,p_email:email||null,p_consent:!!$("#jConsent").checked});
+      const c=await rpc("join_card_v2",{p_slug:slug,p_name:$("#jName").value.trim()||null,p_email:email||null,p_consent:!!$("#jConsent").checked,p_marketing:!!(email&&$("#jMk").checked)});
       cardStore.put(slug,c.token);
       /* came from the counter QR: the stamp for this visit is added right after the card is created */
       const claim=typeof pendingClaim==="function"?pendingClaim(slug):null;
@@ -136,7 +137,9 @@ async function showCard(token,slug,pre,fresh){
       ${last.has_email?"":`<div class="panel stack" style="gap:10px"><b>${L("Pojistěte si kartu","Keep your card safe")}</b><p class="small muted">${L("Přidejte e-mail a kartu i s razítky obnovíte na novém telefonu nebo po smazání prohlížeče.","Add your e-mail and you can restore the card with all stamps on a new phone or after clearing the browser.")}</p>
         <form class="form" id="emForm" novalidate><input class="input" id="emIn" aria-label="${L("E-mail pro obnovu karty","E-mail to restore the card")}" type="email" autocomplete="email" placeholder="${L("vas@email.cz","you@email.com")}" maxlength="120">
         <label class="check"><input type="checkbox" id="emCon"><span>${L(`Souhlasím, aby ${esc(b.name)} uložil můj e-mail pro věrnostní program. Souhlas můžu kdykoli odvolat.`,`I agree that ${esc(b.name)} stores my e-mail for the loyalty programme. I can withdraw this at any time.`)}</span></label>
+        <label class="check"><input type="checkbox" id="emMk"><span>${L("Pošlete mi občas novinky a připomínku, když mi chybí razítko (nejvýš 2× měsíčně, odhlásit jde jedním klepnutím).","Send me news and a reminder when I am one stamp away (at most twice a month, one tap to unsubscribe).")}</span></label>
         <button class="btn" type="submit">${L("Uložit e-mail","Save e-mail")}</button><div class="msg" id="emOut" role="status"></div></form></div>`}
+      ${last.has_email?`<div class="panel"><label class="check" style="margin:0"><input type="checkbox" id="mkToggle"${last.marketing?" checked":""}><span><b>${L("Novinky a připomínky e-mailem","News and reminders by e-mail")}</b><br><span class="small muted">${L("Nejvýš 2× měsíčně a připomínka, když vám chybí poslední razítko.","At most twice a month, plus a reminder when you are one stamp away.")}</span></span></label><div class="msg small" id="mkOut" role="status"></div></div>`:""}
       <div class="panel stack" style="gap:10px">
         <b>${L("Karta je uložená automaticky","Your card is saved automatically")}</b>
         <p class="small muted">${L("Razítka jsou uložená u nás, ne v telefonu, a karta neexpiruje. Nejrychleji ji otevřete z plochy: Sdílet → Přidat na plochu. Nebo si uložte odkaz.","Stamps are stored with us, not on the phone, and the card never expires. Open it fastest from your home screen: Share → Add to Home Screen. Or save the link.")}</p>
@@ -155,8 +158,18 @@ async function showCard(token,slug,pre,fresh){
     if(ef) ef.addEventListener("submit",async e=>{
       e.preventDefault(); const out=$("#emOut"); out.className="msg";
       if(!$("#emCon").checked){ out.className="msg err"; out.textContent=L("Zaškrtněte souhlas s uložením e-mailu.","Please tick the box to agree."); return; }
-      try{ last=await rpc("set_card_email",{p_token:token,p_email:$("#emIn").value.trim(),p_consent:true}); render(false); }
+      try{
+        last=await rpc("set_card_email",{p_token:token,p_email:$("#emIn").value.trim(),p_consent:true});
+        if($("#emMk").checked) last=await rpc("set_card_marketing",{p_token:token,p_on:true});
+        render(false);
+      }
       catch(err){ out.className="msg err"; out.textContent=say(err); }
+    });
+    const mt=$("#mkToggle");
+    if(mt) mt.addEventListener("change",async()=>{
+      const out=$("#mkOut"); out.className="msg small";
+      try{ last=await rpc("set_card_marketing",{p_token:token,p_on:mt.checked}); out.className="msg small ok"; out.textContent=mt.checked?L("Zapnuto.","Switched on."):L("Vypnuto. Nic vám posílat nebudeme.","Switched off. We won't send you anything."); }
+      catch(err){ mt.checked=!mt.checked; out.className="msg small err"; out.textContent=say(err); }
     });
     $("#delBtn").addEventListener("click",()=>{
       openSheet(`<h2 id="sheetTitle" style="font-size:1.6rem">${L("Smazat kartu?","Delete the card?")}</h2><p class="muted">${L("Karta, razítka i vaše jméno a e-mail se nenávratně smažou. Tohle nejde vrátit.","The card, stamps, your name and e-mail will be deleted for good. This can't be undone.")}</p><button class="btn danger big" type="button" id="delYes">${L("Ano, smazat","Yes, delete")}</button><button class="btn ghost" type="button" id="delNo">${L("Ponechat kartu","Keep the card")}</button><div class="msg err" id="delOut"></div>`);
@@ -232,6 +245,15 @@ async function viewMyCards(){
   const my=routeSeq; const rows=await Promise.all(slugs.map(s=>rpc("get_card",{p_token:all[s]}).catch(()=>null))); if(stale(my)) return;
   $("#myList").innerHTML=rows.map(c=>c?`<a class="lcard" style="text-decoration:none;--accent:${esc(c.business.accent)}" href="#/k/${esc(c.business.slug)}"><div class="cardhead">${logoSlot(c.business)}<div><div class="eyebrow">${L("Věrnostní karta","Loyalty card")}</div><div class="biz">${esc(c.business.name)}</div></div></div><p class="small muted" style="margin-top:8px">${Math.min(c.stamps,c.business.stamps_needed)} ${L("z","of")} ${c.business.stamps_needed} ${stampWord(c.business.stamps_needed)}${c.reward_ready?L(" · odměna čeká"," · reward ready"):""}</p></a>`:"").join("")||`<p class="muted">${L("Karty se nepodařilo načíst.","The cards could not be loaded.")}</p>`;
   rows.forEach(c=>{ if(c) fillLogos(c.business); });
+}
+/* link in every news e-mail */
+async function viewUnsubscribe(tok){
+  document.title=L("Odhlášení z novinek","Unsubscribe")+" · Štempl";
+  loading(L("Odhlašuji…","Unsubscribing…"));
+  try{
+    const r=await rpc("marketing_unsubscribe",{p_token:String(tok).toLowerCase().replace(/[^0-9a-f]/g,"")});
+    app.innerHTML=`<div class="wrap narrow stack" style="padding-block:40px"><h1 style="font-size:2rem">${L("Odhlášeno","Unsubscribed")}</h1><p class="muted">${L(`Od ${esc(r.business)} vám už žádné novinky ani připomínky nepřijdou. Karta i razítka zůstávají, sbírat můžete dál.`,`You won't get any more news or reminders from ${esc(r.business)}. Your card and stamps stay, you can keep collecting.`)}</p><a class="btn" href="#/moje">${L("Moje karty","My cards")}</a></div>`;
+  }catch(e){ fail(e.message==="bad_token"?L("Odkaz je neplatný. Novinky můžete vypnout přímo na své kartě.","This link is not valid. You can switch news off on your card."):say(e)); }
 }
 function viewRecover(slug){
   document.title=L("Obnovit kartu","Restore card")+" · Štempl";

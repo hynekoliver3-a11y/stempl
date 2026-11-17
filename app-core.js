@@ -19,6 +19,7 @@ const ERR_EN={
   program_paused:"This loyalty programme is paused right now.", too_soon:"A stamp was added just a moment ago.", daily_limit:"This card has had the most stamps allowed for today.",
   server_error:"Something went wrong on the server. Please try again.", wrong_business:"This card belongs to another business.", subscription_inactive:"This loyalty programme is paused right now.",
   mail_failed:"The e-mail could not be sent. Check the address and try again.", mail_not_configured:"E-mails are not switched on yet.", no_business:"Business not found.",
+  no_email:"Save your e-mail with the card first.", bad_token:"This link is not valid.",
   claim_invalid:"This QR code is no longer valid. Please scan the one on the counter now.", claim_used:"This QR code is no longer valid. Please scan the one on the counter now.", claim_expired:"This QR code is no longer valid. Please scan the one on the counter now."
 };
 const BASE=location.origin+location.pathname;
@@ -40,6 +41,7 @@ const ERR={
   bad_import:"Zadejte počet razítek z papírové kartičky (aspoň 1, méně než plná karta).", bad_limit:"Denní limit musí být 1 až 20.", bad_rules:"Pravidla mohou mít nejvýš 300 znaků.", bad_lead:"Vyplňte jméno, podnik a kontakt.",
   session_expired:"Přihlášení tohoto zařízení vypršelo nebo ho majitel odhlásil. Přihlaste se znovu.", no_session:"Tohle zařízení je přihlášené starým způsobem. Odhlaste se a přihlaste znovu.",
   import_too_late:"Převod z papírové kartičky jde jen u nové karty (do 7 dní a bez vydané odměny).",
+  no_email:"Nejdřív ke kartě uložte e-mail.", bad_subject:"Předmět musí mít 3 až 80 znaků.", bad_body:"Text zprávy musí mít 10 až 1000 znaků.", month_limit:"Tento měsíc už jste poslali 2 zprávy. Další půjde od prvního dne příštího měsíce.",
   bad_web:"Zkontrolujte adresu webu, např. vase-kavarna.cz/menu.", bad_instagram:"Instagram zadejte jako @jmeno nebo odkaz na profil.", bad_phone:"Telefon zadejte jen číslicemi, třeba +420 777 123 456.", bad_logo:"Logo se nepodařilo uložit. Zkuste PNG nebo JPG.",
   bad_adjust:"Počet razítek musí být 0 až trojnásobek plné karty.", bad_spend:"Zadejte průměrnou útratu v korunách (1 až 100 000), nebo pole nechte prázdné.",
   cancel_subscription_first:"Nejdřív zrušte předplatné (Přehled → Předplatné), pak půjde účet smazat.",
@@ -48,7 +50,7 @@ const ERR={
 const say=e=>{ const k=(e&&e.message||"").split(" ")[0];
   if(EN&&ERR_EN[k]&&isCustomerRoute()) return ERR_EN[k];
   return ERR[e&&e.message]||ERR[k]||("Něco se nepovedlo ("+(e&&e.message||"chyba")+")."); };
-const isCustomerRoute=()=>/^#\/(k|c|s|moje|obnovit)(\/|$)/.test(location.hash);
+const isCustomerRoute=()=>/^#\/(k|c|s|moje|obnovit|odhlasit)(\/|$)/.test(location.hash);
 
 async function rpc(fn,args){
   if(demo.on) return demoRpc(fn,args||{});
@@ -171,7 +173,7 @@ document.addEventListener("click",async e=>{
 /* ---------- cookie notice (information only – we use no consent-requiring cookies) ---------- */
 /* the bar is only information (no consent needed), so it stays off the customer's card screens where it would cover the form */
 function cookieBar(route){
-  const show=!store.get("cookieok",false)&&!["k","c","r","s","moje","obnovit","pripojit","pult"].includes(route);
+  const show=!store.get("cookieok",false)&&!["k","c","r","s","moje","obnovit","pripojit","pult","odhlasit"].includes(route);
   $("#cbar").hidden=!show; document.body.classList.toggle("hasbar",show);
 }
 $("#cbarOk").addEventListener("click",()=>{ store.set("cookieok",true); $("#cbar").hidden=true; document.body.classList.remove("hasbar"); });
@@ -204,6 +206,7 @@ function route(){
     case "pripojit": if(h[1]&&h[2]) return viewStaffJoin(h[1],h[2]); break;
     case "pult": return viewPult();
     case "s": if(h[1]&&h[2]) return viewClaim(h[1],h[2]); break;
+    case "odhlasit": if(h[1]) return viewUnsubscribe(h[1]); break;
     case "prehled": return viewOwner(h[1]);
     case "demo": return viewOwner(h[1]);
     case "registrace": return viewRegister();

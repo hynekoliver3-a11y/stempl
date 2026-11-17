@@ -52,6 +52,7 @@ const ic=n=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 
 /* ================= LANDING ================= */
 function viewLanding(){
+  document.title="Štempl – věrnostní karta v mobilu pro kavárny a salony";
   const D=demoData().stats;
   const li=(t,i)=>`<li>${ic(i)}<span>${t}</span></li>`;
   app.innerHTML=`
@@ -131,6 +132,29 @@ function viewLanding(){
     </div>
   </div></div></section>
 
+  <section class="section" id="kalkulacka"><div class="wrap">
+    <div class="shead"><div class="eyebrow">Kalkulačka</div><h2>Vyplatí se vám to?</h2></div>
+    <div class="calc">
+      <form class="form panel" id="roiForm" novalidate>
+        <label class="field">Kolik zákazníků máte za den<input class="input" id="rDay" type="number" inputmode="numeric" min="1" max="2000" value="60"></label>
+        <label class="field">Průměrná útrata na návštěvu (Kč)<input class="input" id="rSpend" type="number" inputmode="numeric" min="10" max="10000" value="90"></label>
+        <label class="field">O kolik víc návštěv díky kartě (odhad) <small>posuňte podle sebe</small><input id="rPct" type="range" min="1" max="15" value="3"><span class="small muted" id="rPctOut">3 %</span></label>
+      </form>
+      <div class="plan" id="roiOut" aria-live="polite"></div>
+    </div>
+    <p class="muted small" style="margin-top:14px;max-width:760px">Jde o orientační výpočet tržby, ne zisku, a procento návštěv navíc je váš odhad, ne slib. Skutečná čísla uvidíte v přehledu: kolik zákazníků se vrací, kolik razítek přibylo a odhad tržby od stálých hostů.</p>
+  </div></section>
+
+  <section class="section alt" id="obory"><div class="wrap">
+    <div class="shead"><div class="eyebrow">Pro koho</div><h2>Štempl pro váš obor</h2></div>
+    <div class="obory">
+      <a href="kavarny.html"><b>Kavárny</b><span>Desátá káva zdarma, rychle u pultu</span></a>
+      <a href="kadernictvi.html"><b>Kadeřnictví a salony</b><span>Připomínka po 30 dnech, dárek k narozeninám</span></a>
+      <a href="barbershopy.html"><b>Barbershopy</b><span>Každý 8. střih zdarma, doporuč kamaráda</span></a>
+      <a href="restaurace.html"><b>Bistra a restaurace</b><span>Polední menu, QR na stůl, zprávy hostům</span></a>
+    </div>
+  </div></section>
+
   <section class="section" id="cena"><div class="wrap">
     <div class="shead"><div class="eyebrow">Cena</div><h2>Jedna cena za podnik. Prvních 30 dní zdarma.</h2></div>
     <div class="plans">
@@ -180,6 +204,18 @@ function viewLanding(){
   const draw=(isNew)=>{ scr.innerHTML=`<div class="lcard" style="--accent:#b45309"><div class="eyebrow">Věrnostní karta</div><div class="biz">Kavárna Ukázka</div><div class="rw"><span class="small muted">${Math.min(s,N)} z ${N}</span><span class="small"><b>Káva zdarma</b></span></div>${stampsGrid(s,N,isNew?s-1:-1)}</div><div class="small muted" style="text-align:center">Ukažte kartu obsluze</div>`; };
   draw(false);
   if(!matchMedia("(prefers-reduced-motion: reduce)").matches){ const iv=setInterval(()=>{ s=s>=N?3:s+1; draw(true); },1800); onLeave(()=>clearInterval(iv)); }
+  const roi=()=>{
+    const day=Math.min(2000,Math.max(0,+$("#rDay").value||0)), spend=Math.min(10000,Math.max(0,+$("#rSpend").value||0)), pct=+$("#rPct").value;
+    $("#rPctOut").textContent=pct+" %";
+    if(!day||!spend){ $("#roiOut").innerHTML=`<p class="muted">Vyplňte počet zákazníků a útratu.</p>`; return; }
+    const need=Math.ceil(PRICE.month/spend), extra=Math.round(day*30*pct/100), money=extra*spend, net=money-PRICE.month;
+    $("#roiOut").innerHTML=`<div class="eyebrow">Štempl se zaplatí, když přivede</div><div class="big">${need} ${plural(need,"návštěvu","návštěvy","návštěv")}</div><p class="muted" style="margin:0">navíc za měsíc (${kc(PRICE.month)} ÷ ${kc(spend)}), tedy asi ${need<=30?"jednu návštěvu za "+Math.max(1,Math.floor(30/need))+" "+plural(Math.max(1,Math.floor(30/need)),"den","dny","dní"):Math.ceil(need/30)+" denně"}.</p>
+      <hr style="border:0;border-top:1px solid var(--line);margin:6px 0">
+      <p style="margin:0">Při ${pct} % návštěv navíc: <b>${extra} ${plural(extra,"návštěva","návštěvy","návštěv")}</b> a <b>${kc(money)}</b> tržby měsíčně.</p>
+      <p style="margin:0" class="${net>=0?"":"muted"}">${net>=0?`Po odečtení Štemplu zůstane <b>${kc(net)}</b> tržby navíc.`:`To je méně než cena Štemplu. Vyplatí se spíš při vyšší útratě nebo víc stálých zákaznících.`}</p>`;
+  };
+  ["#rDay","#rSpend","#rPct"].forEach(id=>$(id).addEventListener("input",roi)); roi();
+  if(location.hash.startsWith("#/kalkulacka")) setTimeout(()=>{ const el=$("#kalkulacka"); if(el) el.scrollIntoView({block:"start",behavior:"instant"}); },80);
   $("#leadForm").addEventListener("submit",async e=>{
     e.preventDefault(); const out=$("#lOut"); out.className="msg";
     const v={p_name:$("#lName").value.trim(),p_business:$("#lBiz").value.trim(),p_contact:$("#lContact").value.trim(),p_message:$("#lMsg").value.trim()||null};

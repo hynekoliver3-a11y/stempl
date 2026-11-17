@@ -13,6 +13,12 @@ Digitální věrnostní karta v mobilu pro kavárny, bistra a salony. Zákazník
 
 Moduly aplikace: `app-pult.js` (režim Pult u kasy, fronta razítek bez signálu), `app-core.js` (nastavení, router, společné funkce), `app-landing.js` (úvodní stránka, ukázka), `app-customer.js` (karta zákazníka), `app-staff.js` (obsluha, skener), `app-owner.js` (přehled majitele, plakátek), `app-admin.js` (registrace, podmínky, Správa).
 
+## Stránky pro vyhledávače a sdílení
+
+- Oborové stránky `kavarny.html`, `kadernictvi.html`, `barbershopy.html`, `restaurace.html` se generují skriptem `tools/build-obory.py` (texty jsou v něm). Ručně je neupravujte, přepíše je další spuštění.
+- `og.png` je náhled při sdílení odkazu (Facebook, WhatsApp, Messenger). Zdroj je `tools/og.html`, obrázek 1200 × 630.
+- Kalkulačka návratnosti je na úvodní stránce, odkaz `#/kalkulacka`.
+
 ## Nasazení
 
 Web je připravený pro Netlify (`netlify.toml`: bezpečnostní hlavičky, bez mezipaměti pro skripty). Stačí repozitář propojit s Netlify, publikuje se kořen, build příkaz žádný.
@@ -22,8 +28,10 @@ Po změně adresy webu:
 1. V Supabase → Edge Functions → Secrets nastavit `APP_URL` na novou adresu (odkazy v e-mailech).
 2. Ve Stripe změnit návratovou adresu platebních odkazů na `…/#/zaplaceno`.
 3. Vytisknout nové plakátky: QR kódy i uložené karty jsou vázané na adresu webu.
+4. V `tools/build-obory.py` změnit `SITE` a spustit `python3 tools/build-obory.py` (přegeneruje oborové stránky, `sitemap.xml` a `robots.txt`). V `index.html` přepsat stejnou adresu v `canonical` a `og:` značkách.
+5. Přihlásit web do Google Search Console a odeslat `sitemap.xml`.
 
-Při každém nasazení zvyšte `CACHE` v `sw.js` (teď `stempl-v15`), jinak telefony s nainstalovanou aplikací uvidí starou verzi déle.
+Při každém nasazení zvyšte `CACHE` v `sw.js` (teď `stempl-v16`), jinak telefony s nainstalovanou aplikací uvidí starou verzi déle.
 
 ## Co doplnit před prodejem
 

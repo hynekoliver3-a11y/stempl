@@ -4,8 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f5f2ea">
-<meta name="description" content="Štempl – digitální věrnostní karta v mobilu a víc recenzí na Googlu pro kavárny, bistra a salony.">
+<meta name="description" content="Věrnostní karta v mobilu pro kavárny, bistra a salony. Zákazník naskenuje QR, obsluha dá razítko telefonem a vy získáte stálé hosty a víc recenzí na Googlu. 30 dní zdarma.">
 <title>Štempl</title>
+<link rel="canonical" href="https://hynekoliver3-a11y.github.io/Stempl-x/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="cs_CZ">
+<meta property="og:site_name" content="Štempl">
+<meta property="og:title" content="Štempl – věrnostní karta v mobilu pro kavárny a salony">
+<meta property="og:description" content="Věrnostní karta v mobilu pro kavárny, bistra a salony. Zákazník naskenuje QR, obsluha dá razítko telefonem a vy získáte stálé hosty a víc recenzí na Googlu. 30 dní zdarma.">
+<meta property="og:url" content="https://hynekoliver3-a11y.github.io/Stempl-x/">
+<meta property="og:image" content="https://hynekoliver3-a11y.github.io/Stempl-x/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -172,6 +183,15 @@ body.hasbar{padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
 .versus .win li{color:var(--cream2)}
 .versus li svg{width:18px;height:18px;flex:none;margin-top:3px}
 .versus .win li svg{color:#ff8a4c}
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+@media (max-width:760px){.calc{grid-template-columns:1fr}}
+.calc input[type=range]{width:100%;accent-color:var(--brand);min-height:32px}
+.obory{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media (max-width:880px){.obory{grid-template-columns:1fr 1fr}}
+@media (max-width:480px){.obory{grid-template-columns:1fr}}
+.obory a{display:grid;gap:4px;padding:18px;border:1px solid var(--line);border-radius:18px;background:var(--card);text-decoration:none;box-shadow:var(--sh1)}
+.obory a span{color:var(--muted);font-size:.9rem}
+.obory a:hover{border-color:var(--brand)}
 .plans{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 @media (max-width:700px){.plans{grid-template-columns:1fr}}
 .plan{position:relative;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:28px;display:grid;gap:10px;align-content:start;box-shadow:var(--sh1)}

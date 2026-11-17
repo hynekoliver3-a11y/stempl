@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /supabase/
+Sitemap: https://hynekoliver3-a11y.github.io/Stempl-x/sitemap.xml

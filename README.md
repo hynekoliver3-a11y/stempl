@@ -23,7 +23,7 @@ Po změně adresy webu:
 2. Ve Stripe změnit návratovou adresu platebních odkazů na `…/#/zaplaceno`.
 3. Vytisknout nové plakátky: QR kódy i uložené karty jsou vázané na adresu webu.
 
-Při každém nasazení zvyšte `CACHE` v `sw.js` (teď `stempl-v9`), jinak telefony s nainstalovanou aplikací uvidí starou verzi déle.
+Při každém nasazení zvyšte `CACHE` v `sw.js` (teď `stempl-v10`), jinak telefony s nainstalovanou aplikací uvidí starou verzi déle.
 
 ## Co doplnit před prodejem
 
@@ -41,8 +41,9 @@ Při každém nasazení zvyšte `CACHE` v `sw.js` (teď `stempl-v9`), jinak tele
 
 ## Bezpečnost v kostce
 
+- Telefon si nepamatuje kód podniku, ale přihlášení zařízení (`S:` + 64 znaků). Platí, dokud se zařízení používá, po 30 dnech nečinnosti vyprší. Majitel vidí seznam zařízení v Nastavení a může je odhlásit; nový kód obsluhy odhlásí telefony obsluhy, nový kód majitele všechna zařízení.
 - Přístupové kódy jsou uložené jen jako bcrypt otisk.
-- Po 10 chybných přihlášeních za 15 minut se přístup z dané IP adresy k danému podniku zamkne.
+- Po 20 chybných přihlášeních za 15 minut se přístup z dané IP adresy k danému podniku zamkne.
 - Každá karta má denní limit razítek (nastavuje majitel, výchozí 2).
 - Nejvýš 15 nových karet za 10 minut z jedné IP adresy u jednoho podniku.
 - Odkaz na recenzi smí vést jen na domény Googlu.

@@ -17,12 +17,39 @@ function loginView(title,next,opts){
   $("#loginForm").addEventListener("submit",async e=>{
     e.preventDefault(); const out=$("#sOut"); out.textContent=""; const btn=e.target.querySelector("button"); btn.disabled=true;
     const slug=$("#sSlug").value.trim().toLowerCase(), code=$("#sCode").value.trim().toUpperCase();
-    try{ const b=await rpc("staff_login",{p_slug:slug,p_code:code}); sess.set({slug,code,name:b.name,role:b.role,by:$("#sBy")?$("#sBy").value.trim():(b.role==="owner"?"majitel":"")}); next(); }
+    try{ await signIn(slug,code,$("#sBy")?$("#sBy").value.trim():""); next(); }
     catch(err){ out.textContent=say(err); btn.disabled=false; }
   });
 }
-function logout(){ sess.clear(); route(); }
-function authFail(e){ if(e&&e.message==="bad_code"){ sess.clear(); route(); return true; } return false; }
+/* A phone keeps a device login ("S:…"), never the business code. The code is only used once to create it. */
+const deviceLabel=()=>{ const u=navigator.userAgent; const os=/iphone/i.test(u)?"iPhone":/ipad/i.test(u)?"iPad":/android/i.test(u)?"Android":/mac os/i.test(u)?"Mac":/windows/i.test(u)?"Windows":"Zařízení";
+  const br=/edg\//i.test(u)?"Edge":/crios|chrome/i.test(u)?"Chrome":/fxios|firefox/i.test(u)?"Firefox":/safari/i.test(u)?"Safari":"prohlížeč"; return os+" · "+br; };
+async function signIn(slug,code,by){
+  const r=await rpc("session_create",{p_slug:slug,p_code:code,p_by:by||null,p_device:deviceLabel()});
+  const s={slug,code:r.session,name:r.name,role:r.role,by:r.by||""}; sess.set(s); return s;
+}
+/* phones still holding a business code from an older version switch to a device login on their own */
+let upgrading=false;
+async function upgradeSession(){
+  const s=demo.on?null:sess.get(); if(!s||upgrading||/^S:/.test(s.code||"")) return;
+  upgrading=true;
+  try{ await signIn(s.slug,s.code,s.by); }
+  catch(e){ if(e.message==="bad_code"||e.message==="no_business") sess.clear(); }
+  upgrading=false;
+}
+async function logout(){
+  const s=demo.on?null:sess.get();
+  if(s&&/^S:/.test(s.code||"")) await rpc("session_logout",{p_slug:s.slug,p_code:s.code}).catch(()=>{});
+  sess.clear(); route();
+}
+function authFail(e){
+  if(e&&(e.message==="bad_code"||e.message==="session_expired")){
+    sess.clear(); route();
+    if(e.message==="session_expired") setTimeout(()=>{ const o=$("#sOut"); if(o) o.textContent=ERR.session_expired; },60);
+    return true;
+  }
+  return false;
+}
 /* short confirmation tone: high for success, low for an error */
 function beep(ok){
   try{
@@ -123,7 +150,7 @@ async function viewScanTarget(token){
       <a class="btn ghost" href="#/c/${esc(token)}">Jsem zákazník – otevřít moji kartu</a></div>`;
     $("#qLogin").addEventListener("submit",async e=>{
       e.preventDefault(); const out=$("#qOut"); out.textContent=""; const slug=$("#qSlug").value.trim().toLowerCase(), code=$("#qCode").value.trim().toUpperCase();
-      try{ const b=await rpc("staff_login",{p_slug:slug,p_code:code}); sess.set({slug,code,name:b.name,role:b.role,by:$("#qBy").value.trim()}); viewScanTarget(token); }
+      try{ await signIn(slug,code,$("#qBy").value.trim()); viewScanTarget(token); }
       catch(err){ out.textContent=say(err); }
     });
     return;
@@ -148,8 +175,7 @@ async function viewStaffJoin(slug,code){
   slug=String(slug).toLowerCase(); code=String(code).toUpperCase();
   loading("Přihlašuji obsluhu…");
   try{
-    const b=await rpc("staff_login",{p_slug:slug,p_code:code});
-    sess.set({slug,code,name:b.name,role:b.role,by:""});
+    await signIn(slug,code,"");
     store.del("staffguide");
     viewStaff();
   }catch(e){ fail(say(e)+" Požádejte majitele o nový QR kód.",`<a class="btn primary" href="#/obsluha">Přihlásit ručně</a>`); }
@@ -164,7 +190,11 @@ function staffWelcome(s,done){
     </ol>
     <form class="form" id="welForm" novalidate><label class="field">Vaše jméno <small>nepovinné; majitel uvidí, kdo dal které razítko</small><input class="input" id="welBy" autocomplete="given-name" maxlength="40" value="${esc(s.by||"")}"></label>
     <button class="btn primary big" type="submit">Začít</button></form>`);
-  $("#welForm").addEventListener("submit",e=>{ e.preventDefault(); s.by=$("#welBy").value.trim(); sess.set(s); store.set("staffguide",true); closeSheet(); done(); });
+  $("#welForm").addEventListener("submit",async e=>{
+    e.preventDefault(); s.by=$("#welBy").value.trim(); sess.set(s); store.set("staffguide",true);
+    if(/^S:/.test(s.code||"")) await rpc("session_rename",{p_slug:s.slug,p_code:s.code,p_by:s.by||null}).catch(()=>{});
+    closeSheet(); done();
+  });
 }
 
 /* jsQR is only needed where the browser has no BarcodeDetector, so it is loaded on first use */

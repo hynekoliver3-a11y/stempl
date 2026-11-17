@@ -108,9 +108,16 @@ async function viewOwner(tab){
       </form>
       <div class="panel stack" style="gap:12px">
         <b>Zaměstnanci</b>
-        <p class="small muted">Všichni zaměstnanci se přihlašují na svém telefonu na <span class="mono">${esc(BASE)}#/obsluha</span> adresou <b>${esc(b.slug)}</b> a kódem obsluhy. Počet zaměstnanců ani telefonů není omezený. Kód obsluhy umí jen razítka a odměny, do přehledu a plateb nepustí. Když někdo odejde, vygenerujte nový kód – starý přestane platit.</p>
+        <p class="small muted">Všichni zaměstnanci se přihlašují na svém telefonu na <span class="mono">${esc(BASE)}#/obsluha</span> adresou <b>${esc(b.slug)}</b> a kódem obsluhy. Počet zaměstnanců ani telefonů není omezený. Kód obsluhy umí jen razítka a odměny, do přehledu a plateb nepustí. Když někdo odejde, vygenerujte nový kód – starý přestane platit a všechny telefony obsluhy se odhlásí.</p>
         <div id="staffCodeBox"></div>
         <div class="row-btns"><button class="btn" id="newStaff" type="button">${b.has_staff_code?"Vygenerovat nový kód obsluhy":"Vytvořit kód obsluhy"}</button></div>
+      </div>
+      <div class="panel stack" style="gap:12px" id="devPanel">
+        <b>Přihlášená zařízení</b>
+        <p class="small muted">Telefony a tablety, které jsou teď přihlášené k podniku. Ztracený telefon nebo bývalého zaměstnance odhlásíte jedním klepnutím. Zařízení, které se 30 dní nepoužije, se odhlásí samo.</p>
+        <ul class="feed" id="devList"><li class="muted small">Načítám…</li></ul>
+        <div class="row-btns"><button class="btn ghost" type="button" id="devAllStaff">Odhlásit všechny telefony obsluhy</button></div>
+        <div class="msg" id="devOut" role="status"></div>
       </div>
       <form class="form panel" id="ownerMail" novalidate>
         <b>E-mail majitele</b>
@@ -127,6 +134,7 @@ async function viewOwner(tab){
     ["stats","cust","qr","plat","set"].forEach(t=>$("#t-"+t).hidden=t!==k);
     if(k==="qr") drawPoster(b,cardUrl);
     if(k==="cust"&&!custLoaded) loadCustomers("");
+    if(k==="set"&&!devLoaded){ devLoaded=true; loadDevices(); }
     history.replaceState(null,"",P+(k==="stats"?"":"/"+k));
   };
   $$(".tabs button").forEach(t=>t.addEventListener("click",()=>show(t.dataset.t)));
@@ -192,6 +200,23 @@ async function viewOwner(tab){
       out.className="msg ok"; out.textContent="Uloženo."; s.name=$("#fName").value.trim(); sess.set(s);
     }catch(err){ out.className="msg err"; out.textContent=say(err); }
   });
+  async function loadDevices(){
+    if(demo.on){ $("#devList").innerHTML=`<li><span>majitel · <span class="muted small">iPhone · Safari</span> <span class="pill ok">toto zařízení</span></span><span class="muted">dnes</span></li><li><span>Jana · <span class="muted small">Android · Chrome</span></span><span class="muted">dnes</span></li>`; return; }
+    if(!/^S:/.test(s.code||"")){ await upgradeSession(); const fresh=sess.get(); if(fresh&&fresh.slug===s.slug) s.code=fresh.code; }
+    if(!/^S:/.test(s.code||"")){ $("#devList").innerHTML=`<li class="muted small">Seznam se ukáže po novém přihlášení tohoto zařízení.</li>`; return; }
+    try{
+      const list=await rpc("owner_sessions",{p_slug:s.slug,p_code:s.code});
+      $("#devList").innerHTML=list.length?list.map(d=>`<li><span>${esc(d.by||(d.role==="owner"?"majitel":"obsluha"))} · <span class="muted small">${esc(d.device||"zařízení")}${d.role==="owner"&&d.by!=="majitel"?" · majitel":""}</span>${d.current?' <span class="pill ok">toto zařízení</span>':""}<br><span class="muted small">naposledy ${fmtDT(d.last_used_at)}</span></span>${d.current?"":`<button class="btn sm ghost" type="button" data-revoke="${esc(d.id)}">Odhlásit</button>`}</li>`).join(""):`<li class="muted small">Žádná zařízení.</li>`;
+      $$("[data-revoke]").forEach(x=>x.addEventListener("click",async()=>{ try{ await rpc("owner_revoke_session",{p_slug:s.slug,p_code:s.code,p_id:x.dataset.revoke,p_all_staff:false}); loadDevices(); }catch(err){ if(authFail(err)) return; $("#devOut").className="msg err"; $("#devOut").textContent=say(err); } }));
+    }catch(err){ if(authFail(err)) return; $("#devList").innerHTML=`<li class="msg err">${esc(say(err))}</li>`; }
+  }
+  $("#devAllStaff").addEventListener("click",async()=>{
+    if(demo.on){ $("#devOut").className="msg err"; $("#devOut").textContent=ERR.demo_mode; return; }
+    if(!confirm("Odhlásit všechny telefony obsluhy? Zaměstnanci se přihlásí znovu kódem obsluhy.")) return;
+    try{ const r=await rpc("owner_revoke_session",{p_slug:s.slug,p_code:s.code,p_id:null,p_all_staff:true}); $("#devOut").className="msg ok"; $("#devOut").textContent="Odhlášeno zařízení: "+r.revoked+"."; loadDevices(); }
+    catch(err){ if(authFail(err)) return; $("#devOut").className="msg err"; $("#devOut").textContent=say(err); }
+  });
+  let devLoaded=false;
   $("#optForm").addEventListener("submit",async e=>{
     e.preventDefault(); const out=$("#optOut"); out.className="msg"; const lim=parseInt($("#oLimit").value,10);
     if(!(lim>=1&&lim<=20)){ out.className="msg err"; out.textContent=ERR.bad_limit; return; }
@@ -213,6 +238,7 @@ async function viewOwner(tab){
       $("#staffCodeBox").innerHTML=`<p class="small muted">Nový kód obsluhy (zapište si ho, znovu se nezobrazí):</p><div class="bigcode">${esc(r.staff_code)}</div>
         <div class="panel stack" style="gap:10px;margin-top:12px"><b>Rychlé přihlášení obsluhy</b><p class="small muted">Zaměstnanec naskenuje tento QR svým telefonem a je přihlášený, nic neopisuje. Ukazujte ho jen zaměstnancům, ne zákazníkům.</p><div class="qr" style="width:min(220px,70vw);aspect-ratio:1;justify-self:center">${qrSVG(joinUrl)}</div></div>`;
       $("#newStaff").textContent="Vygenerovat nový kód obsluhy";
+      if(devLoaded) loadDevices();
     }catch(e){ $("#staffCodeBox").innerHTML=`<p class="msg err">${esc(say(e))}</p>`; }
   });
   $("#oSummary").addEventListener("change",async e=>{

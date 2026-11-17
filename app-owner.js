@@ -126,6 +126,13 @@ async function viewOwner(tab){
         <input class="input" id="oMail" type="email" aria-label="E-mail majitele" value="${esc(b.owner_email||"")}" autocomplete="email" placeholder="majitel@podnik.cz">
         <button class="btn" type="submit">Uložit e-mail</button><div class="msg" id="oOut" role="status"></div>
       </form>
+      <form class="form panel" id="delForm" novalidate>
+        <b>Zrušit účet a smazat data</b>
+        <p class="small muted">Smaže podnik, všechny karty zákazníků, razítka i přihlášená zařízení. Nejde to vrátit. Seznam zákazníků si předtím můžete stáhnout v záložce Zákazníci (Stáhnout do Excelu). Běžící předplatné nejdřív zrušte v záložce Předplatné.</p>
+        <label class="field">Pro potvrzení napište adresu podniku <b>${esc(b.slug)}</b><input class="input mono" id="delSlug" autocapitalize="off" autocomplete="off"></label>
+        <button class="btn danger" type="submit">Trvale smazat podnik</button>
+        <div class="msg err" id="delOut" role="status"></div>
+      </form>
     </div>
   </div>${foot()}`;
   if($("#out")) $("#out").addEventListener("click",logout);
@@ -217,6 +224,18 @@ async function viewOwner(tab){
     catch(err){ if(authFail(err)) return; $("#devOut").className="msg err"; $("#devOut").textContent=say(err); }
   });
   let devLoaded=false;
+  $("#delForm").addEventListener("submit",async e=>{
+    e.preventDefault(); const out=$("#delOut"); out.textContent="";
+    if(demo.on){ out.textContent=ERR.demo_mode; return; }
+    const typed=$("#delSlug").value.trim().toLowerCase();
+    if(typed!==b.slug){ out.textContent=ERR.confirm_mismatch; return; }
+    if(!confirm("Opravdu trvale smazat "+b.name+" a všech "+st.customers+" karet zákazníků?")) return;
+    try{
+      await rpc("owner_delete_business",{p_slug:s.slug,p_code:s.code,p_confirm:typed});
+      sess.clear();
+      app.innerHTML=`<div class="wrap narrow stack" style="padding-block:40px"><h1 style="font-size:2rem">Účet je zrušený</h1><p class="muted">Podnik ${esc(b.name)} i všechna data zákazníků jsme smazali. Děkujeme, že jste Štempl vyzkoušeli. Kdybyste se chtěli vrátit, stačí se znovu zaregistrovat.</p><a class="btn" href="#/">Na úvod</a></div>`;
+    }catch(err){ if(authFail(err)) return; out.textContent=say(err); }
+  });
   $("#optForm").addEventListener("submit",async e=>{
     e.preventDefault(); const out=$("#optOut"); out.className="msg"; const lim=parseInt($("#oLimit").value,10);
     if(!(lim>=1&&lim<=20)){ out.className="msg err"; out.textContent=ERR.bad_limit; return; }

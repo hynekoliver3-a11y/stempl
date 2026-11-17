@@ -23,13 +23,13 @@ Po změně adresy webu:
 2. Ve Stripe změnit návratovou adresu platebních odkazů na `…/#/zaplaceno`.
 3. Vytisknout nové plakátky: QR kódy i uložené karty jsou vázané na adresu webu.
 
-Při každém nasazení zvyšte `CACHE` v `sw.js` (teď `stempl-v10`), jinak telefony s nainstalovanou aplikací uvidí starou verzi déle.
+Při každém nasazení zvyšte `CACHE` v `sw.js` (teď `stempl-v11`), jinak telefony s nainstalovanou aplikací uvidí starou verzi déle.
 
 ## Co doplnit před prodejem
 
 - `PROVIDER` v `app-core.js`: `ico` a `phone` (objeví se v patičce, podmínkách a v sekci Kdo za tím stojí).
 - `cookies.html`: kontakt provozovatele.
-- Spustit funkci `owner_delete_business` z konce `supabase/migrations/20261117_vylepseni_b1.sql` (zrušení účtu majitelem).
+- Doplnit IČO a telefon (viz výše).
 
 ## Obnova po výpadku
 

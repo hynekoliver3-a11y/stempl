@@ -310,7 +310,7 @@ begin
   return coalesce(public._hash(coalesce(p_key, '')) = (select v from public.app_config where k = 'cron_hash'), false);
 end $$;
 
-/* ---------- ZBÝVÁ SPUSTIT RUČNĚ v Supabase → SQL Editor (obsahuje mazání, proto chce potvrzení) ----------
+/* ---------- Spuštěno ručně v Supabase → SQL Editor 17. 11. 2026 (obsahuje mazání, potvrzení přes nástroj nefungovalo) ----------
 -- Majitel si sám zruší účet a smaže data. Tlačítko v aplikaci se doplní, až bude funkce v databázi.
 create or replace function public.owner_delete_business(p_slug text, p_code text, p_confirm text) returns jsonb
 language plpgsql security definer set search_path to '' as $$

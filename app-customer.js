@@ -83,7 +83,7 @@ async function showCard(token,slug,pre,fresh){
   document.title=c.business.name+" · Štempl";
   if(location.hash!=="#/c/"+token) history.replaceState(null,"","#/c/"+token);
   setCardManifest(c.business.name,BASE+"#/c/"+token);
-  let last=c;
+  let last=c, boost=()=>{};
   const link=BASE+"#/c/"+token;
   const render=(isNewStamp)=>{
     const b=last.business, n=b.stamps_needed, left=Math.max(0,n-last.stamps);
@@ -100,7 +100,7 @@ async function showCard(token,slug,pre,fresh){
         ${b.rules_text?`<p class="small muted" style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--line2)"><b>Pravidla:</b> ${esc(b.rules_text)}</p>`:""}
       </div>
       ${last.has_email?"":`<div class="panel stack" style="gap:10px"><b>Pojistěte si kartu</b><p class="small muted">Přidejte e-mail a kartu i s razítky obnovíte na novém telefonu nebo po smazání prohlížeče.</p>
-        <form class="form" id="emForm" novalidate><input class="input" id="emIn" type="email" autocomplete="email" placeholder="vas@email.cz" maxlength="120">
+        <form class="form" id="emForm" novalidate><input class="input" id="emIn" aria-label="E-mail pro obnovu karty" type="email" autocomplete="email" placeholder="vas@email.cz" maxlength="120">
         <label class="check"><input type="checkbox" id="emCon"><span>Souhlasím, aby ${esc(b.name)} uložil můj e-mail pro věrnostní program. Souhlas můžu kdykoli odvolat.</span></label>
         <button class="btn" type="submit">Uložit e-mail</button><div class="msg" id="emOut" role="status"></div></form></div>`}
       <div class="panel stack" style="gap:10px">
@@ -114,7 +114,7 @@ async function showCard(token,slug,pre,fresh){
       <p class="tiny muted" style="text-align:center"><button class="linkbtn" id="delBtn" type="button">Smazat kartu a moje údaje</button></p>
       </div>`;
     setAccent($("#lc"),b.accent); setAccent($("#showQr"),b.accent);
-    const bigQr=()=>showQrFull(BASE+"#/r/"+token,b.name,short(token));
+    const bigQr=()=>{ boost(); showQrFull(BASE+"#/r/"+token,b.name,short(token)); };
     $("#showQr").addEventListener("click",bigQr); $("#qrTap").addEventListener("click",bigQr);
     $("#copyLink").addEventListener("click",()=>copy(link,$("#copyOut")));
     const ef=$("#emForm");
@@ -152,6 +152,7 @@ async function showCard(token,slug,pre,fresh){
   const loop=()=>{ if(gone) return; timer=setTimeout(async()=>{ await tick(); loop(); },Date.now()<fastUntil?4000:30000); };
   const wake=()=>{ if(document.hidden||gone) return; fastUntil=Date.now()+120000; clearTimeout(timer); tick().then(loop); };
   document.addEventListener("visibilitychange",wake);
+  boost=wake;
   loop(); onLeave(()=>{ gone=true; clearTimeout(timer); document.removeEventListener("visibilitychange",wake); closeQrFull(); });
 }
 /* QR across the whole white screen, so staff can scan it at the counter without scrolling */

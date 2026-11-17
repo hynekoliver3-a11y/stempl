@@ -116,7 +116,7 @@ async function viewOwner(tab){
         <b>E-mail majitele</b>
         <p class="small muted">Na něj pošleme nový kód, když ho zapomenete, a v pondělí krátký souhrn týdne.</p>
         <label class="check"><input type="checkbox" id="oSummary"${b.weekly_summary!==false?" checked":""}><span>Posílat týdenní souhrn (razítka, noví zákazníci, recenze)</span></label>
-        <input class="input" id="oMail" type="email" value="${esc(b.owner_email||"")}" autocomplete="email" placeholder="majitel@podnik.cz">
+        <input class="input" id="oMail" type="email" aria-label="E-mail majitele" value="${esc(b.owner_email||"")}" autocomplete="email" placeholder="majitel@podnik.cz">
         <button class="btn" type="submit">Uložit e-mail</button><div class="msg" id="oOut" role="status"></div>
       </form>
     </div>

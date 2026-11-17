@@ -56,6 +56,7 @@ function codesView(r,title,intro){
     <div class="row-btns"><a class="btn primary" href="#/prehled/qr">Otevřít přehled</a><a class="btn ghost" href="#/obsluha">Režim obsluhy</a></div></div>`;
 }
 async function viewConfirm(token){
+  document.title="Potvrzení registrace · Štempl";
   loading("Potvrzuji registraci…");
   try{ const r=await api("confirm",{token}); history.replaceState(null,"","#/hotovo"); codesView(r,"Podnik je založený","Zkušební verze zdarma běží do "+fmtD(r.trial_ends_at)+". Tady jsou vaše přístupy:"); }
   catch(e){ fail(say(e),e.message==="already_confirmed"?`<a class="btn primary" href="#/prehled">Přihlásit se</a>`:""); }
@@ -75,6 +76,7 @@ function viewForgot(){
   });
 }
 async function viewResetCode(token){
+  document.title="Nový kód majitele · Štempl";
   loading("Nastavuji nový kód…");
   try{ const r=await api("reset_code",{token}); history.replaceState(null,"","#/hotovo"); codesView(r,"Nový kód majitele","Starý kód majitele přestal platit. Kód obsluhy zůstává stejný."); }
   catch(e){ fail(say(e)); }
@@ -145,15 +147,16 @@ function viewPrivacy(){
 /* ================= ADMIN (Oliver) ================= */
 function viewAdmin(){
   document.title="Správa · Štempl";
-  const key=store.get("ikey","")||(sessionStorage.getItem("stempl.ikey")||"");
+  /* the installer key lives only for this browser tab; an older remembered copy is removed */
+  store.del("ikey");
+  const key=sessionStorage.getItem("stempl.ikey")||"";
   if(!key){
     app.innerHTML=`<div class="wrap narrow stack" style="padding-block:32px"><div><div class="eyebrow">Jen pro provozovatele</div><h1 style="font-size:2.4rem;margin-top:8px">Správa</h1></div>
       <form class="form panel" id="akForm" novalidate><label class="field">Instalační klíč<input class="input mono" id="ak" type="password" autocomplete="off" required></label>
-      <label class="check"><input type="checkbox" id="akRem"><span>Zapamatovat v tomto prohlížeči</span></label>
       <button class="btn primary" type="submit">Přihlásit</button><div class="msg err" id="akOut"></div></form></div>`;
     $("#akForm").addEventListener("submit",async e=>{
       e.preventDefault(); const k=$("#ak").value.trim();
-      try{ await rpc("admin_overview",{p_installer_key:k}); if($("#akRem").checked) store.set("ikey",k); else sessionStorage.setItem("stempl.ikey",k); viewAdmin(); }
+      try{ await rpc("admin_overview",{p_installer_key:k}); sessionStorage.setItem("stempl.ikey",k); viewAdmin(); }
       catch(err){ $("#akOut").textContent=say(err); }
     });
     return;
@@ -219,7 +222,7 @@ function viewNew(){
   app.innerHTML=`<div class="wrap narrow stack" style="padding-block:28px">
     <div><div class="eyebrow">Pro správce Štemplu</div><h1 style="font-size:2.4rem;margin-top:8px">Nový podnik</h1><p class="small muted" style="margin-top:6px"><a href="#/sprava">← Správa</a></p></div>
     <form class="form panel" id="newForm" novalidate>
-      <label class="field">Instalační klíč<input class="input mono" id="nKey" type="password" autocomplete="off" value="${esc(store.get("ikey","")||sessionStorage.getItem("stempl.ikey")||"")}" required></label>
+      <label class="field">Instalační klíč<input class="input mono" id="nKey" type="password" autocomplete="off" value="${esc(sessionStorage.getItem("stempl.ikey")||"")}" required></label>
       <label class="field">Název podniku<input class="input" id="nName" placeholder="Kavárna U Mostu" maxlength="80" required></label>
       <label class="field">Adresa (v odkazu) <small>malá písmena, čísla a pomlčky</small><input class="input mono" id="nSlug" maxlength="40" autocapitalize="off" required></label>
       <div class="two">

@@ -27,6 +27,7 @@ const ERR={
   locked:"Příliš mnoho chybných pokusů. Zkuste to znovu za 15 minut.", daily_limit:"Tahle karta už dnes dostala nejvyšší povolený počet razítek. Limit mění majitel v Nastavení.",
   bad_review_url:"Odkaz na recenzi musí vést na Google (např. https://g.page/r/…/review nebo odkaz z Map Google).", already_imported:"Papírová kartička už byla na tuhle kartu převedena.",
   bad_import:"Zadejte počet razítek z papírové kartičky (aspoň 1, méně než plná karta).", bad_limit:"Denní limit musí být 1 až 20.", bad_rules:"Pravidla mohou mít nejvýš 300 znaků.", bad_lead:"Vyplňte jméno, podnik a kontakt.",
+  import_too_late:"Převod z papírové kartičky jde jen u nové karty (do 7 dní a bez vydané odměny).",
   bad_adjust:"Počet razítek musí být 0 až trojnásobek plné karty.", bad_spend:"Zadejte průměrnou útratu v korunách (1 až 100 000), nebo pole nechte prázdné.",
   cancel_subscription_first:"Nejdřív zrušte předplatné (Přehled → Předplatné), pak půjde účet smazat.",
   demo_mode:"Tohle je ukázka s vymyšlenými daty, změny se tu neukládají.", confirm_mismatch:"Pro potvrzení napište přesně adresu podniku.", bad_days:"Neplatný počet dní.", no_payment:"Platba nenalezena."
@@ -152,7 +153,11 @@ document.addEventListener("click",async e=>{
 });
 
 /* ---------- cookie notice (information only – we use no consent-requiring cookies) ---------- */
-if(!store.get("cookieok",false)){ $("#cbar").hidden=false; document.body.classList.add("hasbar"); }
+/* the bar is only information (no consent needed), so it stays off the customer's card screens where it would cover the form */
+function cookieBar(route){
+  const show=!store.get("cookieok",false)&&!["k","c","r","moje","obnovit","pripojit"].includes(route);
+  $("#cbar").hidden=!show; document.body.classList.toggle("hasbar",show);
+}
 $("#cbarOk").addEventListener("click",()=>{ store.set("cookieok",true); $("#cbar").hidden=true; document.body.classList.remove("hasbar"); });
 
 /* ---------- router ---------- */
@@ -166,6 +171,7 @@ function route(){
   const h=decodeURIComponent(location.hash.replace(/^#\/?/,"")).split("/");
   window.scrollTo(0,0); document.title="Štempl";
   demo.on=h[0]==="demo";
+  cookieBar(h[0]);
   const ss=demo.on?null:sess.get(), cta=$("#topCta");
   cta.hidden=["k","c","moje","obnovit"].includes(h[0])||(h[0]==="r"&&!ss);
   $("#topLogin").hidden=cta.hidden||!!ss;

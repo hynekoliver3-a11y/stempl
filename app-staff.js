@@ -3,6 +3,7 @@
 const sess={ get(){ return demo.on?DEMO_SESS:store.get("staff",null); }, set(v){ if(!demo.on) store.set("staff",v); }, clear(){ if(!demo.on) store.del("staff"); } };
 function loginView(title,next,opts){
   const s=sess.get();
+  document.title="Přihlášení · "+title+" · Štempl";
   app.innerHTML=`<div class="wrap narrow stack" style="padding-block:32px">
     <div><div class="eyebrow">${esc(title)}</div><h1 style="font-size:2.4rem;margin-top:8px">Přihlášení podniku</h1></div>
     <form class="form panel" id="loginForm" novalidate>

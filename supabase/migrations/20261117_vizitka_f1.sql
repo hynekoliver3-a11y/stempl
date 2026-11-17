@@ -1,0 +1,6 @@
+-- Štempl – vizitka podniku na kartě (17. 11. 2026), provedeno jako vizitka_f1.
+-- Nové sloupce businesses: logo (data URL do 150 kB), logo_v, web_url, instagram, address, hours, public_phone.
+-- private.profile_json, _card_json a public_business vracejí kontakty a jen verzi loga (logo_v);
+-- logo samotné vrací business_logo(slug), prohlížeč si ho drží v paměti podle verze.
+-- owner_set_profile(slug, code, logo, web, instagram, address, hours, phone): logo null = beze změny, '' = smazat.
+-- owner_stats vrací v business i kontakty. Plné znění je v historii migrací v Supabase.

@@ -10,6 +10,17 @@ const PRICE={month:490,year:4900};
 const PROVIDER={name:"Oliver Hynek",city:"Brno",ico:"",phone:"",email:"stemplapp@gmail.com",vatNote:"Provozovatel není plátcem DPH, ceny jsou konečné."};
 
 const app=document.getElementById("app");
+/* Customer screens speak English to phones that are not set to Czech or Slovak (?lang=en / ?lang=cs overrides). Business screens stay Czech. */
+const EN=(()=>{ try{ const q=new URLSearchParams(location.search).get("lang"); if(q) return q==="en"; }catch(e){} return !/^(cs|sk)\b/i.test(navigator.language||"cs"); })();
+const L=(cs,en)=>EN?en:cs;
+const ERR_EN={
+  network:"Can't reach the server. Check your connection and try again.", no_card:"Card not found.", consent_required:"Tick the consent box, or leave the e-mail empty.",
+  card_exists:"You already have a card with this e-mail.", bad_email:"Please check the e-mail address.", rate_limited:"Too many attempts, please try again in a moment.",
+  program_paused:"This loyalty programme is paused right now.", too_soon:"A stamp was added just a moment ago.", daily_limit:"This card has had the most stamps allowed for today.",
+  server_error:"Something went wrong on the server. Please try again.", wrong_business:"This card belongs to another business.", subscription_inactive:"This loyalty programme is paused right now.",
+  mail_failed:"The e-mail could not be sent. Check the address and try again.", mail_not_configured:"E-mails are not switched on yet.", no_business:"Business not found.",
+  claim_invalid:"This QR code is no longer valid. Please scan the one on the counter now.", claim_used:"This QR code is no longer valid. Please scan the one on the counter now.", claim_expired:"This QR code is no longer valid. Please scan the one on the counter now."
+};
 const BASE=location.origin+location.pathname;
 const ERR={
   bad_code:"Nesprávná adresa podniku nebo kód.", too_soon:"Razítko už bylo přidáno před chvílí.", wrong_business:"Tahle karta patří jinému podniku.",
@@ -29,11 +40,15 @@ const ERR={
   bad_import:"Zadejte počet razítek z papírové kartičky (aspoň 1, méně než plná karta).", bad_limit:"Denní limit musí být 1 až 20.", bad_rules:"Pravidla mohou mít nejvýš 300 znaků.", bad_lead:"Vyplňte jméno, podnik a kontakt.",
   session_expired:"Přihlášení tohoto zařízení vypršelo nebo ho majitel odhlásil. Přihlaste se znovu.", no_session:"Tohle zařízení je přihlášené starým způsobem. Odhlaste se a přihlaste znovu.",
   import_too_late:"Převod z papírové kartičky jde jen u nové karty (do 7 dní a bez vydané odměny).",
+  bad_web:"Zkontrolujte adresu webu, např. vase-kavarna.cz/menu.", bad_instagram:"Instagram zadejte jako @jmeno nebo odkaz na profil.", bad_phone:"Telefon zadejte jen číslicemi, třeba +420 777 123 456.", bad_logo:"Logo se nepodařilo uložit. Zkuste PNG nebo JPG.",
   bad_adjust:"Počet razítek musí být 0 až trojnásobek plné karty.", bad_spend:"Zadejte průměrnou útratu v korunách (1 až 100 000), nebo pole nechte prázdné.",
   cancel_subscription_first:"Nejdřív zrušte předplatné (Přehled → Předplatné), pak půjde účet smazat.",
   demo_mode:"Tohle je ukázka s vymyšlenými daty, změny se tu neukládají.", confirm_mismatch:"Pro potvrzení napište přesně adresu podniku.", bad_days:"Neplatný počet dní.", no_payment:"Platba nenalezena."
 };
-const say=e=>ERR[e&&e.message]||ERR[(e&&e.message||"").split(" ")[0]]||("Něco se nepovedlo ("+(e&&e.message||"chyba")+").");
+const say=e=>{ const k=(e&&e.message||"").split(" ")[0];
+  if(EN&&ERR_EN[k]&&isCustomerRoute()) return ERR_EN[k];
+  return ERR[e&&e.message]||ERR[k]||("Něco se nepovedlo ("+(e&&e.message||"chyba")+")."); };
+const isCustomerRoute=()=>/^#\/(k|c|s|moje|obnovit)(\/|$)/.test(location.hash);
 
 async function rpc(fn,args){
   if(demo.on) return demoRpc(fn,args||{});
@@ -105,7 +120,7 @@ function stampsGrid(stamps,needed,newIndex){
   const n=Math.min(stamps,needed); let h="";
   for(let i=0;i<needed;i++) h+=slotSVG(i,i<n,needed,i===newIndex);
   const cls=needed%5===0?" n"+needed:"";
-  return `<div class="stamps${cls}" role="img" aria-label="${n} z ${needed} razítek">${h}</div>`;
+  return `<div class="stamps${cls}" role="img" aria-label="${n} ${L("z","of")} ${needed} ${L("razítek","stamps")}">${h}</div>`;
 }
 function downloadFile(name,content,type){
   const b=new Blob([content],{type}); const a=document.createElement("a");
@@ -147,9 +162,9 @@ document.addEventListener("click",async e=>{
     return;
   }
   const steps=isIOS()
-    ?`<ol class="small" style="margin:0;padding-left:20px;display:grid;gap:8px"><li>Dole (nebo nahoře) ťukněte na <b>Sdílet</b> – čtvereček se šipkou nahoru.</li><li>Vyberte <b>Přidat na plochu</b>.</li><li>Potvrďte <b>Přidat</b>. Ikona Štemplu se objeví mezi aplikacemi.</li></ol><p class="tiny muted">Položku nevidíte? Sjeďte v nabídce níž, nebo stránku otevřete v Safari.</p>`
-    :`<ol class="small" style="margin:0;padding-left:20px;display:grid;gap:8px"><li>Otevřete nabídku prohlížeče – tři tečky <b>⋮</b> vpravo nahoře.</li><li>Vyberte <b>Nainstalovat aplikaci</b> nebo <b>Přidat na plochu</b>.</li><li>Potvrďte. Ikona Štemplu se objeví mezi aplikacemi.</li></ol>`;
-  openSheet(`<h2 id="sheetTitle" style="font-size:1.6rem">Stáhnout do telefonu</h2><p class="muted">Štempl se přidá na plochu jako aplikace. Nic se nestahuje z obchodu a nezabere místo.</p>${steps}<button class="btn primary" type="button" id="instOk">Rozumím</button>`);
+    ?`<ol class="small" style="margin:0;padding-left:20px;display:grid;gap:8px"><li>${L("Dole (nebo nahoře) ťukněte na <b>Sdílet</b> – čtvereček se šipkou nahoru.","Tap <b>Share</b> at the bottom (or top) – the square with an arrow.")}</li><li>${L("Vyberte <b>Přidat na plochu</b>.","Choose <b>Add to Home Screen</b>.")}</li><li>${L("Potvrďte <b>Přidat</b>. Ikona Štemplu se objeví mezi aplikacemi.","Confirm <b>Add</b>. The Štempl icon appears with your apps.")}</li></ol><p class="tiny muted">${L("Položku nevidíte? Sjeďte v nabídce níž, nebo stránku otevřete v Safari.","Can't see it? Scroll down in the menu, or open the page in Safari.")}</p>`
+    :`<ol class="small" style="margin:0;padding-left:20px;display:grid;gap:8px"><li>${L("Otevřete nabídku prohlížeče – tři tečky <b>⋮</b> vpravo nahoře.","Open the browser menu – the three dots <b>⋮</b> top right.")}</li><li>${L("Vyberte <b>Nainstalovat aplikaci</b> nebo <b>Přidat na plochu</b>.","Choose <b>Install app</b> or <b>Add to Home screen</b>.")}</li><li>${L("Potvrďte. Ikona Štemplu se objeví mezi aplikacemi.","Confirm. The Štempl icon appears with your apps.")}</li></ol>`;
+  openSheet(`<h2 id="sheetTitle" style="font-size:1.6rem">${L("Stáhnout do telefonu","Add to your phone")}</h2><p class="muted">${L("Štempl se přidá na plochu jako aplikace. Nic se nestahuje z obchodu a nezabere místo.","Štempl is added to your home screen like an app. Nothing to download from a store.")}</p>${steps}<button class="btn primary" type="button" id="instOk">${L("Rozumím","Got it")}</button>`);
   $("#instOk").addEventListener("click",closeSheet);
 });
 
@@ -172,6 +187,7 @@ function route(){
   const h=decodeURIComponent(location.hash.replace(/^#\/?/,"")).split("/");
   window.scrollTo(0,0); document.title="Štempl";
   demo.on=h[0]==="demo";
+  document.documentElement.lang=EN&&["k","c","s","moje","obnovit"].includes(h[0])?"en":"cs";
   cookieBar(h[0]);
   if(typeof upgradeSession==="function") upgradeSession();
   const ss=demo.on?null:sess.get(), cta=$("#topCta");
@@ -210,5 +226,5 @@ document.addEventListener("click",e=>{
   if(document.getElementById(a.dataset.jump)) go(); else { location.hash="#/"; setTimeout(go,120); }
 });
 function foot(){ return `<footer class="foot"><div class="wrap"><span>Štempl · ${esc(PROVIDER.name)}, ${esc(PROVIDER.city)}${PROVIDER.ico?" · IČO "+esc(PROVIDER.ico):""} · <a href="mailto:${esc(PROVIDER.email)}">${esc(PROVIDER.email)}</a></span><span><a href="#/prehled">Přihlášení</a> · <a href="#/podminky">Obchodní podmínky</a> · <a href="#/soukromi">Ochrana osobních údajů</a> · <a href="cookies.html">Cookies</a> · <a href="#/moje">Moje karty</a></span></div></footer>`; }
-function fail(msg,extra){ app.innerHTML=`<div class="wrap narrow stack" style="padding-block:40px"><h2 style="font-size:1.8rem">Jejda</h2><p class="muted">${esc(msg)}</p>${extra||""}<a class="btn" href="#/">Na úvod</a></div>`; }
-function loading(t){ app.innerHTML=`<div class="wrap narrow loadbox"><div class="spin" aria-hidden="true"></div><p class="muted">${esc(t||"Načítám…")}</p></div>`; }
+function fail(msg,extra){ app.innerHTML=`<div class="wrap narrow stack" style="padding-block:40px"><h2 style="font-size:1.8rem">${isCustomerRoute()?L("Jejda","Oops"):"Jejda"}</h2><p class="muted">${esc(msg)}</p>${extra||""}<a class="btn" href="#/">Na úvod</a></div>`; }
+function loading(t){ app.innerHTML=`<div class="wrap narrow loadbox"><div class="spin" aria-hidden="true"></div><p class="muted">${esc(t||(isCustomerRoute()?L("Načítám…","Loading…"):"Načítám…"))}</p></div>`; }

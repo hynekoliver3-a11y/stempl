@@ -98,6 +98,21 @@ async function viewOwner(tab){
         <button class="btn primary" type="submit">Uložit</button>
         <div class="msg" id="fOut" role="status"></div>
       </form>
+      <form class="form panel" id="profForm" novalidate>
+        <b>Vizitka na kartě</b>
+        <p class="small muted">Zákazník uvidí logo a kontakty přímo na své kartě. Logo se objeví i na plakátku. Všechno je nepovinné.</p>
+        <div class="logo-row"><div class="logo-prev" id="logoPrev">${b.logo_v?"":"bez loga"}</div><div class="stack" style="gap:8px">
+          <label class="btn sm" style="width:auto">Nahrát logo<input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+          ${b.logo_v?`<button class="btn sm ghost" type="button" id="logoDel">Odebrat logo</button>`:""}
+          <span class="tiny muted">PNG nebo JPG, ideálně čtvercové. Zmenšíme ho samo.</span></div></div>
+        <label class="field">Web nebo menu<input class="input" id="pWeb" value="${esc(b.web_url||"")}" placeholder="vase-kavarna.cz/menu" maxlength="200" autocapitalize="off"></label>
+        <label class="field">Instagram<input class="input" id="pIg" value="${esc(b.instagram?"@"+b.instagram:"")}" placeholder="@vasekavarna" maxlength="60" autocapitalize="off"></label>
+        <label class="field">Adresa <small>zákazníkovi nabídneme navigaci</small><input class="input" id="pAddr" value="${esc(b.address||"")}" placeholder="Náměstí Svobody 1, Brno" maxlength="160"></label>
+        <label class="field">Otevírací doba<input class="input" id="pHours" value="${esc(b.hours||"")}" placeholder="Po–Pá 8–18, So 9–14" maxlength="160"></label>
+        <label class="field">Telefon pro zákazníky<input class="input" id="pPhone" type="tel" value="${esc(b.public_phone||"")}" placeholder="+420 777 123 456" maxlength="20"></label>
+        <button class="btn primary" type="submit">Uložit vizitku</button>
+        <div class="msg" id="pOut" role="status"></div>
+      </form>
       <form class="form panel" id="optForm" novalidate>
         <b>Pravidla razítek</b>
         <label class="field">Nejvíc razítek na jednu kartu za den <small>ochrana proti falešným razítkům; při hodnotě 1 obsluze zmizí tlačítko +2</small><input class="input" id="oLimit" type="number" min="1" max="20" value="${b.daily_stamp_limit||2}" required></label>
@@ -225,6 +240,37 @@ async function viewOwner(tab){
     catch(err){ if(authFail(err)) return; $("#devOut").className="msg err"; $("#devOut").textContent=say(err); }
   });
   let devLoaded=false;
+  /* logo: shrunk in the browser to at most 256 px, stored as a small image */
+  let newLogo=null;
+  if(b.logo_v) bizLogo(b).then(d=>{ if(d&&$("#logoPrev")) $("#logoPrev").innerHTML=`<img src="${d}" alt="Logo">`; });
+  $("#logoFile").addEventListener("change",e=>{
+    const f=e.target.files&&e.target.files[0]; if(!f) return;
+    const out=$("#pOut"); out.className="msg";
+    const img=new Image(), url=URL.createObjectURL(f);
+    img.onload=()=>{
+      const k=Math.min(1,256/Math.max(img.width,img.height)), c=document.createElement("canvas");
+      c.width=Math.max(1,Math.round(img.width*k)); c.height=Math.max(1,Math.round(img.height*k));
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
+      let d=c.toDataURL("image/webp",.86); if(!/^data:image\/webp/.test(d)) d=c.toDataURL("image/png");
+      if(d.length>150000) d=c.toDataURL("image/jpeg",.82);
+      if(d.length>150000){ out.className="msg err"; out.textContent="Logo je moc velké i po zmenšení. Zkuste jednodušší obrázek."; return; }
+      newLogo=d; $("#logoPrev").innerHTML=`<img src="${d}" alt="Logo">`; out.textContent="Logo je připravené, uložte vizitku.";
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url); out.className="msg err"; out.textContent="Tenhle soubor nejde načíst jako obrázek."; };
+    img.src=url;
+  });
+  if($("#logoDel")) $("#logoDel").addEventListener("click",()=>{ newLogo=""; $("#logoPrev").textContent="bez loga"; $("#pOut").className="msg"; $("#pOut").textContent="Logo se odebere po uložení."; });
+  $("#profForm").addEventListener("submit",async e=>{
+    e.preventDefault(); const out=$("#pOut"); out.className="msg";
+    if(demo.on){ out.className="msg err"; out.textContent=ERR.demo_mode; return; }
+    try{
+      const r=await rpc("owner_set_profile",{p_slug:s.slug,p_code:s.code,p_logo:newLogo,p_web:$("#pWeb").value.trim()||null,p_instagram:$("#pIg").value.trim()||null,
+        p_address:$("#pAddr").value.trim()||null,p_hours:$("#pHours").value.trim()||null,p_phone:$("#pPhone").value.trim()||null});
+      Object.assign(b,r); newLogo=null; store.del("logo."+b.slug);
+      $("#pWeb").value=r.web_url||""; $("#pIg").value=r.instagram?"@"+r.instagram:"";
+      out.className="msg ok"; out.textContent="Uloženo. Zákazníci vizitku uvidí při dalším otevření karty.";
+    }catch(err){ if(authFail(err)) return; out.className="msg err"; out.textContent=say(err); }
+  });
   $("#delForm").addEventListener("submit",async e=>{
     e.preventDefault(); const out=$("#delOut"); out.textContent="";
     if(demo.on){ out.textContent=ERR.demo_mode; return; }
@@ -321,5 +367,9 @@ async function drawPoster(b,url){
   x.fillStyle="#16140f"; x.font="700 74px "+F; x.fillText("Naskenujte fotoaparátem", W/2, qy+qs+54+112);
   x.font="400 42px "+F; x.fillStyle="#655f55"; x.fillText(b.welcome_stamp?"První razítko máte hned. Nic se nestahuje.":"Karta je zdarma a nic se nestahuje.", W/2, qy+qs+54+180);
   sp("4px"); x.font="600 28px "+F; x.fillStyle="#8a8377"; x.fillText("ŠTEMPL", W/2, H-56); sp("0px");
+  /* business logo on a white rounded tile in the top right corner */
+  const lg=b.logo_v?await bizLogo(b):null;
+  if(lg){ await new Promise(res=>{ const im=new Image(); im.onload=()=>{ const t=170, X=W-t-48, Y=40; x.fillStyle="#fff"; rr(X,Y,t,t,28); x.fill();
+      const k=Math.min((t-28)/im.width,(t-28)/im.height), w=im.width*k, h=im.height*k; x.drawImage(im,X+(t-w)/2,Y+(t-h)/2,w,h); res(); }; im.onerror=res; im.src=lg; }); }
   try{ $("#dl").href=c.toDataURL("image/png"); }catch(e){}
 }

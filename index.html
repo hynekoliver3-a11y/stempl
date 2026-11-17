@@ -99,7 +99,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .slot.new g{animation:thump .55s cubic-bezier(.2,1.6,.4,1) both;transform-origin:50px 50px}
 @keyframes thump{0%{transform:scale(1.9);opacity:0}60%{opacity:1}100%{transform:scale(1);opacity:1}}
 /* loyalty card */
-.lcard{position:relative;display:block;background:linear-gradient(180deg,#fffefb,#fbf8f1);border-radius:24px;padding:26px 22px 22px;border:1px solid var(--line);box-shadow:var(--sh2);overflow:hidden}
+.lcard{position:relative;display:block;background:linear-gradient(180deg,var(--card),var(--card2,#fbf8f1));border-radius:24px;padding:26px 22px 22px;border:1px solid var(--line);box-shadow:var(--sh2);overflow:hidden}
 .lcard::before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:var(--accent)}
 .lcard .eyebrow{display:flex;justify-content:space-between;gap:10px}
 .lcard .biz{font:700 1.65rem/1.08 var(--display);letter-spacing:-.03em;margin-top:8px}
@@ -271,6 +271,25 @@ footer.foot a{color:var(--muted)}
 .qrfull-code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1.5rem;letter-spacing:.18em;font-weight:700}
 .qrfull .btn{width:min(92vw,420px)}
 body.noscroll{overflow:hidden}
+.cardhead{display:flex;gap:14px;align-items:center}
+.bizlogo{width:56px;height:56px;object-fit:contain;border-radius:14px;background:#fff;padding:4px;border:1px solid var(--line);flex:none}
+.logo-row{display:flex;gap:14px;align-items:center}
+.logo-prev{width:84px;height:84px;border-radius:16px;border:1.5px dashed var(--line2);display:grid;place-items:center;font-size:.78rem;color:var(--muted);background:#fff;overflow:hidden;flex:none}
+.logo-prev img{width:100%;height:100%;object-fit:contain}
+.bizinfo .row-btns .btn{width:auto}
+/* dark mode follows the phone; QR codes always stay black on white */
+@media (prefers-color-scheme:dark){
+  :root{--paper:#14120e;--card:#1e1b16;--card2:#1a1813;--ink:#f3efe6;--ink2:#e6e0d4;--muted:#a9a296;--line:rgba(243,239,230,.12);--line2:rgba(243,239,230,.2);
+    --cream:#14120e;--cream2:#3a352d;--ok:#3f9a66;--warn:#c47a2c;--bad:#e0594a;--brand-ink:#f07a43;
+    --sh1:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);--sh2:0 1px 2px rgba(0,0,0,.4),0 28px 60px -30px rgba(0,0,0,.8);color-scheme:dark}
+  .top{background:rgba(20,18,14,.86)!important}
+  .legal p,.legal li{color:var(--ink2)!important}
+  .qr,.qrfull,.qrfull-qr,.pult-qr,.logo-prev,.bizlogo{background:#fff!important;color:#111}
+  .qrfull{color:#111}.qrfull .btn{background:#fff;color:#111;border-color:#ccc}
+  .pult-help{color:#111}
+  .input{background:#15130f;color:var(--ink)}
+  .cbar{background:#2a261f!important;color:var(--ink)!important}
+}
 body.pultmode .top,body.pultmode .foot{display:none}
 .pult{min-height:100vh;display:grid;grid-template-rows:auto auto 1fr;gap:14px;padding:calc(12px + env(safe-area-inset-top)) 16px 16px;max-width:900px;margin:0 auto}
 .pult-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}

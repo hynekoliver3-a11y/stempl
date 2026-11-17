@@ -212,7 +212,7 @@ async function viewClaim(slug,claim){
     try{ sessionStorage.setItem("stempl.claim",JSON.stringify({slug,claim,at:Date.now()})); }catch(e){}
     return viewJoin(slug);
   }
-  loading("Přidávám razítko…");
+  loading(L("Přidávám razítko…","Adding your stamp…"));
   await claimFor(slug,token,claim);
 }
 async function claimFor(slug,token,claim){
@@ -222,10 +222,10 @@ async function claimFor(slug,token,claim){
     thanks(c,token);
   }catch(e){
     const msg=e.message==="claim_used"||e.message==="claim_expired"||e.message==="claim_invalid"
-      ?"Tenhle QR kód už neplatí. Naskenujte prosím ten, který je teď na pultu."
+      ?L("Tenhle QR kód už neplatí. Naskenujte prosím ten, který je teď na pultu.","This QR code is no longer valid. Please scan the one on the counter now.")
       :say(e);
     await showCard(token,slug,null,false);
-    openSheet(`<h2 id="sheetTitle" style="font-size:1.5rem">Razítko nepřidáno</h2><p class="muted">${esc(msg)}</p><button class="btn primary" type="button" id="okBtn">Rozumím</button>`);
+    openSheet(`<h2 id="sheetTitle" style="font-size:1.5rem">${L("Razítko nepřidáno","Stamp not added")}</h2><p class="muted">${esc(msg)}</p><button class="btn primary" type="button" id="okBtn">${L("Rozumím","Got it")}</button>`);
     $("#okBtn").addEventListener("click",closeSheet);
   }
 }

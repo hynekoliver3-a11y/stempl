@@ -136,6 +136,13 @@ Deno.serve(async (req) => {
           needed: Number(body.needed ?? 10),
           accent: /^#[0-9a-f]{6}$/i.test(body.accent ?? "") ? body.accent : "#c2410c",
           phone: String(body.phone ?? "").trim().slice(0, 30),
+          // optional: Google review link and the recommended settings for this kind of business (checked again in the database)
+          review_url: String(body.review_url ?? "").trim().slice(0, 300),
+          limit: Number(body.limit ?? 2),
+          small_at: body.small_at == null ? null : Number(body.small_at),
+          small_text: String(body.small_text ?? "").trim().slice(0, 80),
+          birthday_text: String(body.birthday_text ?? "").trim().slice(0, 80),
+          referral_on: body.referral_on === true,
           terms_accepted_at: new Date().toISOString(),
           terms_version: TERMS_VERSION,
         };

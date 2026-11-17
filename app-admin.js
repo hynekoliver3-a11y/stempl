@@ -1,5 +1,22 @@
 "use strict";
 /* ================= SELF-SERVE REGISTRATION ================= */
+/* recommended starting settings per kind of business; the owner can change all of it later in Nastavení */
+const CAT_TPL={
+  kavarna:{reward:"Káva zdarma",needed:10,limit:2,small_at:5,small_text:"Malé espresso",birthday_text:"",referral_on:false},
+  bistro:{reward:"Polední menu zdarma",needed:10,limit:1,small_at:5,small_text:"Dezert",birthday_text:"",referral_on:false},
+  kadernictvi:{reward:"Péče o vlasy zdarma",needed:6,limit:1,small_at:null,small_text:"",birthday_text:"Malý dárek k narozeninám",referral_on:true},
+  barber:{reward:"Střih zdarma",needed:8,limit:1,small_at:null,small_text:"",birthday_text:"",referral_on:true},
+  kosmetika:{reward:"Manikúra zdarma",needed:8,limit:1,small_at:null,small_text:"",birthday_text:"Malý dárek k narozeninám",referral_on:true},
+  mycka:{reward:"Mytí zdarma",needed:10,limit:1,small_at:5,small_text:"Vysávání zdarma",birthday_text:"",referral_on:false},
+  jine:{reward:"Odměna zdarma",needed:10,limit:2,small_at:null,small_text:"",birthday_text:"",referral_on:false}
+};
+function tplExtras(t){
+  const x=[`nejvíc ${t.limit} ${plural(t.limit,"razítko","razítka","razítek")} na kartu za den`];
+  if(t.small_at) x.push(`menší odměna po ${t.small_at} razítkách: ${t.small_text}`);
+  if(t.birthday_text) x.push(`dárek k narozeninám`);
+  if(t.referral_on) x.push(`Doporuč kamaráda (razítko navíc pro oba)`);
+  return x;
+}
 function viewRegister(){
   document.title="Registrace · Štempl";
   app.innerHTML=`<div class="wrap narrow stack" style="padding-block:28px">
@@ -15,6 +32,8 @@ function viewRegister(){
         <label class="field">Odměna<input class="input" id="rReward" value="Káva zdarma" maxlength="80" required></label>
         <label class="field">Razítek na odměnu<input class="input" id="rNeeded" type="number" min="3" max="30" value="10" required></label>
       </div>
+      <label class="check"><input type="checkbox" id="rTpl" checked><span>Použít doporučené nastavení pro tento obor: <span id="rTplText"></span>. <small class="muted">Vše jde později změnit v Nastavení.</small></span></label>
+      <label class="field">Odkaz na recenze na Googlu <small>nepovinné, jde doplnit i později. Profil firmy na Googlu → Požádat o recenze → zkopírovat odkaz.</small><input class="input" id="rReview" type="url" inputmode="url" autocapitalize="off" maxlength="300" placeholder="https://g.page/r/…/review"></label>
       <label class="field">E-mail majitele <small>pošleme na něj potvrzení a přístupy</small><input class="input" id="rEmail" type="email" autocomplete="email" maxlength="120" required></label>
       <label class="field">Telefon <small>nepovinné, kdybyste chtěli pomoct s nastavením</small><input class="input" id="rPhone" type="tel" autocomplete="tel" maxlength="30"></label>
       <div class="hp" aria-hidden="true"><label>Web<input id="rWeb" tabindex="-1" autocomplete="off"></label></div>
@@ -26,6 +45,11 @@ function viewRegister(){
   let touched=false;
   $("#rSlug").addEventListener("input",()=>touched=true);
   $("#rName").addEventListener("input",()=>{ if(!touched) $("#rSlug").value=slugify($("#rName").value); });
+  /* the reward and stamp count follow the kind of business until the owner edits them */
+  let rwTouched=false; $("#rReward").addEventListener("input",()=>rwTouched=true); $("#rNeeded").addEventListener("input",()=>rwTouched=true);
+  const tpl=()=>CAT_TPL[$("#rCat").value]||CAT_TPL.jine;
+  const showTpl=()=>{ const t=tpl(); if(!rwTouched){ $("#rReward").value=t.reward; $("#rNeeded").value=t.needed; } $("#rTplText").textContent=tplExtras(t).join(", "); };
+  $("#rCat").addEventListener("change",showTpl); showTpl();
   $("#regForm").addEventListener("submit",async e=>{
     e.preventDefault(); const out=$("#rOut"); out.textContent="";
     const slug=slugify($("#rSlug").value), needed=parseInt($("#rNeeded").value,10), email=$("#rEmail").value.trim();
@@ -33,10 +57,14 @@ function viewRegister(){
     if(slug.length<3){ out.textContent=ERR.bad_slug; return; }
     if(!(needed>=3&&needed<=30)){ out.textContent=ERR.bad_needed; return; }
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ out.textContent=ERR.bad_email; return; }
+    const review=$("#rReview").value.trim();
+    if(review&&!reviewUrlOk(review)){ out.textContent=ERR.bad_review_url; $("#rReview").focus(); return; }
     if(!$("#rTerms").checked){ out.textContent=ERR.terms_required; return; }
+    const t=$("#rTpl").checked?tpl():{limit:2,small_at:null,small_text:"",birthday_text:"",referral_on:false};
+    const extra={review_url:review,limit:t.limit,small_at:t.small_at&&t.small_at<needed?t.small_at:null,small_text:t.small_at&&t.small_at<needed?t.small_text:"",birthday_text:t.birthday_text,referral_on:t.referral_on};
     const btn=e.target.querySelector("button[type=submit]"); btn.disabled=true;
     try{
-      await api("register",{name:$("#rName").value.trim(),slug,category:$("#rCat").value,reward:$("#rReward").value.trim(),needed,accent:$("#rAccent").value,email,phone:$("#rPhone").value.trim(),website:$("#rWeb").value,accept_terms:true});
+      await api("register",Object.assign({name:$("#rName").value.trim(),slug,category:$("#rCat").value,reward:$("#rReward").value.trim(),needed,accent:$("#rAccent").value,email,phone:$("#rPhone").value.trim(),website:$("#rWeb").value,accept_terms:true},extra));
       app.innerHTML=`<div class="wrap narrow stack" style="padding-block:40px"><svg width="60" height="60" viewBox="0 0 100 100" style="color:var(--ok)"><use href="#mark"/></svg><h1 style="font-size:2.2rem">Zkontrolujte e-mail</h1><p class="muted">Poslali jsme potvrzovací odkaz na <b>${esc(email)}</b>. Klikněte na něj a podnik se založí. Odkaz platí 72 hodin. Pokud e-mail nevidíte, podívejte se do spamu.</p><a class="btn ghost" href="#/">Na úvod</a></div>`;
     }catch(err){ out.textContent=say(err); btn.disabled=false; }
   });
@@ -52,7 +80,7 @@ function codesView(r,title,intro){
       ${r.staff_code?`<div><div class="small muted">Kód obsluhy – pro všechny zaměstnance, umí jen razítka</div><div class="bigcode" style="margin-top:6px;background:var(--card);color:var(--ink);border:1.5px solid var(--line2)">${esc(r.staff_code)}</div></div>`:""}
       ${r.mailed===false?`<div class="note">Přístupy se nepodařilo poslat e-mailem, opište si je prosím teď.</div>`:`<p class="small muted">Přístupy jsme vám poslali i e-mailem. Na tomto zařízení už jste přihlášení.</p>`}
     </div>
-    <div class="panel stack" style="gap:8px"><b>Co dál</b><p class="small">1. V přehledu stáhněte plakátek s QR kódem a dejte ho na pult.<br>2. Doplňte odkaz na recenze na Googlu v Nastavení.<br>3. Zaměstnanci se přihlásí na <span class="mono">#/obsluha</span> kódem obsluhy.</p></div>
+    <div class="panel stack" style="gap:8px"><b>Co dál</b><p class="small">1. V přehledu stáhněte plakátek s QR kódem a dejte ho na pult.<br>2. Pokud jste nevyplnili odkaz na recenze na Googlu, doplňte ho v Nastavení.<br>3. Zaměstnanci se přihlásí na <span class="mono">#/obsluha</span> kódem obsluhy.</p></div>
     <div class="row-btns"><a class="btn primary" href="#/prehled/qr">Otevřít přehled</a><a class="btn ghost" href="#/obsluha">Režim obsluhy</a></div></div>`;
 }
 async function viewConfirm(token){

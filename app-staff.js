@@ -8,6 +8,7 @@ function loginView(title,next,opts){
     <form class="form panel" id="loginForm" novalidate>
       <label class="field">Adresa podniku <small>z e-mailu s přístupy, např. ukazka</small><input class="input" id="sSlug" autocapitalize="off" autocomplete="username" value="${esc(s&&s.slug||"")}" required></label>
       <label class="field">${opts&&opts.owner?"Kód majitele":"Kód obsluhy nebo kód majitele"} <small>8 znaků</small><input class="input mono" id="sCode" autocapitalize="characters" autocomplete="current-password" maxlength="12" required></label>
+      ${opts&&opts.owner?"":`<label class="field">Vaše jméno <small>nepovinné; majitel uvidí, kdo dal které razítko</small><input class="input" id="sBy" autocomplete="given-name" maxlength="40" value="${esc(s&&s.by||"")}"></label>`}
       <button class="btn primary big" type="submit">Přihlásit</button>
       <div class="msg err" id="sOut" role="status"></div>
     </form>
@@ -15,7 +16,7 @@ function loginView(title,next,opts){
   $("#loginForm").addEventListener("submit",async e=>{
     e.preventDefault(); const out=$("#sOut"); out.textContent=""; const btn=e.target.querySelector("button"); btn.disabled=true;
     const slug=$("#sSlug").value.trim().toLowerCase(), code=$("#sCode").value.trim().toUpperCase();
-    try{ const b=await rpc("staff_login",{p_slug:slug,p_code:code}); sess.set({slug,code,name:b.name,role:b.role}); next(); }
+    try{ const b=await rpc("staff_login",{p_slug:slug,p_code:code}); sess.set({slug,code,name:b.name,role:b.role,by:$("#sBy")?$("#sBy").value.trim():(b.role==="owner"?"majitel":"")}); next(); }
     catch(err){ out.textContent=say(err); btn.disabled=false; }
   });
 }
@@ -68,7 +69,7 @@ function staffCardPanel(host,s,cur,opts){
         e.preventDefault(); const k=parseInt($("#impN").value,10);
         if(!(k>=1&&k<=n-1)){ $("#impOut").textContent=ERR.bad_import; return; }
         e.target.querySelector("button[type=submit]").disabled=true;
-        try{ cur=await rpc("import_paper_stamps",{p_slug:s.slug,p_code:s.code,p_token:cur.token,p_count:k}); closeSheet(); beep(true); draw(); $("#rcOut",host).className="msg ok"; $("#rcOut",host).textContent=k+" "+plural(k,"razítko převedeno","razítka převedena","razítek převedeno")+" z papírové kartičky."; }
+        try{ cur=await rpc("import_paper_v2",{p_slug:s.slug,p_code:s.code,p_token:cur.token,p_count:k,p_by:s.by||null}); closeSheet(); beep(true); draw(); $("#rcOut",host).className="msg ok"; $("#rcOut",host).textContent=k+" "+plural(k,"razítko převedeno","razítka převedena","razítek převedeno")+" z papírové kartičky."; }
         catch(err){ if(authFail(err)){ closeSheet(); return; } e.target.querySelector("button[type=submit]").disabled=false; $("#impOut").textContent=say(err); }
       });
     });
@@ -80,7 +81,10 @@ function staffCardPanel(host,s,cur,opts){
     $$("button",host).forEach(b=>b.disabled=true);
     try{
       const args={p_slug:s.slug,p_code:s.code,p_token:cur.token}; if(count) args.p_count=count;
-      cur=await rpc(fn,args);
+      /* stamps and rewards carry the staff member's name, so the owner sees who gave them */
+      const V2={stamp_card:"stamp_card_v2",redeem_reward:"redeem_reward_v2"};
+      if(V2[fn]) args.p_by=s.by||null;
+      cur=await rpc(V2[fn]||fn,args);
       const what=fn==="stamp_card"?(count>1?count+" razítka přidána":"Razítko přidáno"):fn==="redeem_reward"?"Odměna vydána":((cur.undone||1)>1?"Razítka vrácena":"Razítko vráceno");
       host.innerHTML=`<div class="done"><svg viewBox="0 0 100 100"><use href="#mark"/></svg><b style="font-size:1.4rem">${what}</b><span>${Math.min(cur.stamps,cur.business.stamps_needed)} z ${cur.business.stamps_needed} · ${visits(cur.total_stamps)}${cur.reward_ready?" · odměna připravená":""}</span></div>
         <div class="row-btns" style="margin-top:12px"><button class="btn ghost" type="button" id="backCard">Zpět na kartu</button>${opts.next?`<button class="btn primary" type="button" id="nextAfter">Další zákazník</button>`:""}</div>
@@ -111,13 +115,14 @@ async function viewScanTarget(token){
       <form class="form panel" id="qLogin" novalidate>
         <label class="field">Adresa podniku<input class="input" id="qSlug" autocapitalize="off" autocomplete="username" required></label>
         <label class="field">Kód obsluhy<input class="input mono" id="qCode" autocapitalize="characters" autocomplete="current-password" maxlength="12" required></label>
+        <label class="field">Vaše jméno <small>nepovinné; majitel uvidí, kdo dal které razítko</small><input class="input" id="qBy" autocomplete="given-name" maxlength="40"></label>
         <button class="btn primary big" type="submit">Přihlásit a otevřít kartu</button>
         <div class="msg err" id="qOut" role="status"></div>
       </form>
       <a class="btn ghost" href="#/c/${esc(token)}">Jsem zákazník – otevřít moji kartu</a></div>`;
     $("#qLogin").addEventListener("submit",async e=>{
       e.preventDefault(); const out=$("#qOut"); out.textContent=""; const slug=$("#qSlug").value.trim().toLowerCase(), code=$("#qCode").value.trim().toUpperCase();
-      try{ const b=await rpc("staff_login",{p_slug:slug,p_code:code}); sess.set({slug,code,name:b.name,role:b.role}); viewScanTarget(token); }
+      try{ const b=await rpc("staff_login",{p_slug:slug,p_code:code}); sess.set({slug,code,name:b.name,role:b.role,by:$("#qBy").value.trim()}); viewScanTarget(token); }
       catch(err){ out.textContent=say(err); }
     });
     return;
@@ -136,6 +141,31 @@ async function viewScanTarget(token){
   staffCardPanel($("#res"),s,c);
 }
 
+/* staff login from the QR the owner shows: the code never stays in the address bar */
+async function viewStaffJoin(slug,code){
+  history.replaceState(null,"","#/obsluha");
+  slug=String(slug).toLowerCase(); code=String(code).toUpperCase();
+  loading("Přihlašuji obsluhu…");
+  try{
+    const b=await rpc("staff_login",{p_slug:slug,p_code:code});
+    sess.set({slug,code,name:b.name,role:b.role,by:""});
+    store.del("staffguide");
+    viewStaff();
+  }catch(e){ fail(say(e)+" Požádejte majitele o nový QR kód.",`<a class="btn primary" href="#/obsluha">Přihlásit ručně</a>`); }
+}
+/* first visit of the staff screen: who is serving and three steps how it works */
+function staffWelcome(s,done){
+  openSheet(`<h2 id="sheetTitle" style="font-size:1.6rem">Vítejte v obsluze</h2>
+    <ol class="small" style="margin:0;padding-left:20px;display:grid;gap:8px">
+      <li><b>Naskenujte QR kód</b> na kartě zákazníka: tlačítkem Skenovat přímo tady, nebo obyčejným fotoaparátem telefonu.</li>
+      <li><b>Ťukněte na Přidat razítko.</b> Za jednu návštěvu jedno razítko. Odměnu vydáte tlačítkem, které se objeví samo.</li>
+      <li><b>Zákazník nemá kartu?</b> Ukažte mu QR plakátek na pultu. Kartu získá za pár vteřin a nic nestahuje.</li>
+    </ol>
+    <form class="form" id="welForm" novalidate><label class="field">Vaše jméno <small>nepovinné; majitel uvidí, kdo dal které razítko</small><input class="input" id="welBy" autocomplete="given-name" maxlength="40" value="${esc(s.by||"")}"></label>
+    <button class="btn primary big" type="submit">Začít</button></form>`);
+  $("#welForm").addEventListener("submit",e=>{ e.preventDefault(); s.by=$("#welBy").value.trim(); sess.set(s); store.set("staffguide",true); closeSheet(); done(); });
+}
+
 /* jsQR is only needed where the browser has no BarcodeDetector, so it is loaded on first use */
 let jsqrLoading=null;
 function loadJsQR(){
@@ -150,7 +180,7 @@ function viewStaff(){
   document.title="Obsluha · "+s.name;
   const hasDet=("BarcodeDetector" in window), hasCam=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
   app.innerHTML=`<div class="wrap narrow stack" style="padding-block:20px">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="eyebrow">Obsluha${s.role==="owner"?" · majitel":""}</div><h1 style="font-size:1.8rem;margin-top:4px">${esc(s.name)}</h1></div><button class="btn ghost sm" id="out" type="button">Odhlásit</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="eyebrow">Obsluha${s.role==="owner"?" · majitel":""}</div><h1 style="font-size:1.8rem;margin-top:4px">${esc(s.name)}</h1>${demo.on?"":`<p class="small muted" style="margin-top:2px">Obsluhuje: <b>${esc(s.by||"bez jména")}</b> · <button class="linkbtn" type="button" id="whoBtn">změnit</button></p>`}</div><button class="btn ghost sm" id="out" type="button">Odhlásit</button></div>
     <div id="scanArea"></div>
     <div id="res"></div>
     <div class="panel stack" style="gap:12px">
@@ -164,6 +194,8 @@ function viewStaff(){
   </div>`;
   if(!demo.on) setManifest("Štempl – obsluha","Štempl",BASE+"#/obsluha");
   $("#out").addEventListener("click",logout);
+  if($("#whoBtn")) $("#whoBtn").addEventListener("click",()=>staffWelcome(s,viewStaff));
+  if(!demo.on&&!store.get("staffguide",false)) setTimeout(()=>staffWelcome(s,viewStaff),50);
   let stream=null, raf=0, busy=false, usedCam=false, skipTok="", skipUntil=0;
   const stop=()=>{ cancelAnimationFrame(raf); if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } };
   onLeave(stop);

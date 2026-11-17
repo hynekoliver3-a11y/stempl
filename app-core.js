@@ -27,6 +27,8 @@ const ERR={
   locked:"Příliš mnoho chybných pokusů. Zkuste to znovu za 15 minut.", daily_limit:"Tahle karta už dnes dostala nejvyšší povolený počet razítek. Limit mění majitel v Nastavení.",
   bad_review_url:"Odkaz na recenzi musí vést na Google (např. https://g.page/r/…/review nebo odkaz z Map Google).", already_imported:"Papírová kartička už byla na tuhle kartu převedena.",
   bad_import:"Zadejte počet razítek z papírové kartičky (aspoň 1, méně než plná karta).", bad_limit:"Denní limit musí být 1 až 20.", bad_rules:"Pravidla mohou mít nejvýš 300 znaků.", bad_lead:"Vyplňte jméno, podnik a kontakt.",
+  bad_adjust:"Počet razítek musí být 0 až trojnásobek plné karty.", bad_spend:"Zadejte průměrnou útratu v korunách (1 až 100 000), nebo pole nechte prázdné.",
+  cancel_subscription_first:"Nejdřív zrušte předplatné (Přehled → Předplatné), pak půjde účet smazat.",
   demo_mode:"Tohle je ukázka s vymyšlenými daty, změny se tu neukládají.", confirm_mismatch:"Pro potvrzení napište přesně adresu podniku.", bad_days:"Neplatný počet dní.", no_payment:"Platba nenalezena."
 };
 const say=e=>ERR[e&&e.message]||ERR[(e&&e.message||"").split(" ")[0]]||("Něco se nepovedlo ("+(e&&e.message||"chyba")+").");
@@ -175,6 +177,7 @@ function route(){
     case "moje": return viewMyCards();
     case "obnovit": return viewRecover(h[1]||"");
     case "obsluha": return viewStaff();
+    case "pripojit": if(h[1]&&h[2]) return viewStaffJoin(h[1],h[2]); break;
     case "prehled": return viewOwner(h[1]);
     case "demo": return viewOwner(h[1]);
     case "registrace": return viewRegister();

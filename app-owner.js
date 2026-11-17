@@ -43,7 +43,11 @@ async function viewOwner(tab){
         <div class="tile"><b>${st.redeemed_total}</b><span>vydaných odměn</span></div>
         ${st.idle_30d!=null?`<div class="tile"><b>${st.idle_30d}</b><span>nebylo 30 dní <button class="linkbtn" type="button" id="idleGo">zobrazit</button></span></div>`:""}
         <div class="tile"><b>${st.review_clicks_30d}</b><span>otevřelo formulář recenze na Googlu (30 dní)</span></div>
+        ${st.returning_visits_30d==null?"":b.avg_spend?`<div class="tile"><b>${kc(st.returning_visits_30d*b.avg_spend)}</b><span>odhad tržeb z opakovaných návštěv za 30 dní (${st.returning_visits_30d} × ${kc(b.avg_spend)})</span></div>`
+          :`<div class="tile"><b>?</b><span>kolik vydělávají vracející se zákazníci <button class="linkbtn" type="button" data-go="set">zadat průměrnou útratu</button></span></div>`}
       </div>
+      ${(st.busy_cards_7d||[]).length?`<div class="panel stack" style="gap:8px"><b>Neobvykle hodně razítek (7 dní)</b><p class="small muted">Karty se 6 a více razítky za týden. Často jde o stálé hosty, ale stojí za to se podívat, kdo jim razítka dával.</p><ul class="feed">${st.busy_cards_7d.map(c=>`<li><span><button class="linkbtn" type="button" data-card="${esc(c.id)}">${c.name?esc(c.name):'<span class="mono">'+esc(c.code)+'</span>'}</button></span><span class="muted">${c.stamps} razítek ve ${c.days} ${plural(c.days,"dni","dnech","dnech")}</span></li>`).join("")}</ul></div>`:""}
+      ${(st.by_staff||[]).filter(x=>x.stamps||x.redeems).length?`<div class="panel stack" style="gap:8px"><b>Kdo dával razítka (30 dní)</b><ul class="feed">${st.by_staff.filter(x=>x.stamps||x.redeems).map(x=>`<li><span>${esc(x.name)}</span><span class="muted">${x.stamps} ${plural(x.stamps,"razítko","razítka","razítek")} · ${x.redeems} ${plural(x.redeems,"odměna","odměny","odměn")}</span></li>`).join("")}</ul><p class="tiny muted">Jméno zadává obsluha při přihlášení. Když tu vidíte „bez jména“, požádejte obsluhu, ať ho vyplní.</p></div>`:""}
       ${todo.every(t=>t[1])?"":`<div class="panel stack" style="gap:8px"><b>První kroky</b><ul class="todo">${todo.map(t=>`<li class="${t[1]?"ok":""}"><span class="dot"></span><span class="t">${t[0]}</span>${t[1]?"":`<button class="btn sm" type="button" data-go="${t[2]}">${t[3]}</button>`}</li>`).join("")}</ul></div>`}
       ${b.google_review_url?"":`<div class="note bad">Chybí odkaz na recenze na Googlu, takže zákazníky zatím o recenzi neprosíme. Doplňte ho v <a href="${P}/set">Nastavení</a>.</div>`}
       <div class="panel"><b>Razítka za posledních 14 dní</b><div id="chart" style="margin-top:12px"></div></div>
@@ -97,6 +101,7 @@ async function viewOwner(tab){
         <b>Pravidla razítek</b>
         <label class="field">Nejvíc razítek na jednu kartu za den <small>ochrana proti falešným razítkům; při hodnotě 1 obsluze zmizí tlačítko +2</small><input class="input" id="oLimit" type="number" min="1" max="20" value="${b.daily_stamp_limit||2}" required></label>
         <label class="check"><input type="checkbox" id="oWelcome"${b.welcome_stamp?" checked":""}><span>Uvítací razítko: nový zákazník dostane první razítko hned při získání karty. Rozdělanou kartu lidé dokončují ochotněji než prázdnou.</span></label>
+        <label class="field">Průměrná útrata zákazníka v Kč <small>nepovinné; z ní spočítáme, kolik vám vynášejí vracející se zákazníci</small><input class="input" id="oSpend" type="number" inputmode="numeric" min="1" max="100000" value="${b.avg_spend||""}" placeholder="např. 90"></label>
         <label class="field">Pravidla pro zákazníky <small>nepovinné, zobrazí se na kartě – např. za co je razítko a jestli razítka propadají</small><textarea class="input" id="oRules" rows="3" maxlength="300" placeholder="Razítko za každý nápoj nad 60 Kč. Razítka nepropadají.">${esc(b.rules_text||"")}</textarea></label>
         <button class="btn primary" type="submit">Uložit pravidla</button>
         <div class="msg" id="optOut" role="status"></div>
@@ -128,9 +133,9 @@ async function viewOwner(tab){
   $$("[data-go]").forEach(t=>t.addEventListener("click",()=>show(t.dataset.go)));
   $("#copyCard").addEventListener("click",()=>copy(cardUrl,$("#copyCardOut")));
   $("#chart").innerHTML=`<div style="overflow-x:auto">${barChart(st.daily||[])}</div>`;
-  const KIND={import:["Převod z papíru","stamp"],join:["Nová karta",""],stamp:["Razítko","stamp"],redeem:["Odměna vydána","redeem"],review_click:["Otevřel recenzi","review"]};
+  const KIND={import:["Převod z papíru","stamp"],adjust:["Oprava majitelem",""],join:["Nová karta",""],stamp:["Razítko","stamp"],redeem:["Odměna vydána","redeem"],review_click:["Otevřel recenzi","review"]};
   const feed=st.recent||[];
-  $("#feed").innerHTML=feed.length?feed.map(e=>{ const k=KIND[e.kind]||[e.kind,""]; return `<li><span><span class="pill ${k[1]}">${k[0]}</span> ${e.name?esc(e.name):e.card?'<span class="mono muted">'+esc(e.card)+'</span>':'<span class="muted">smazaná karta</span>'}</span><span class="muted">${fmtDT(e.at)}</span></li>`; }).join(""):`<li class="muted">Zatím nic. První zákazník se objeví po naskenování QR na pultu.</li>`;
+  $("#feed").innerHTML=feed.length?feed.map(e=>{ const k=KIND[e.kind]||[e.kind,""]; return `<li><span><span class="pill ${k[1]}">${k[0]}${(e.kind==="import"||e.kind==="adjust")&&e.qty?" "+(e.qty>0?"+":"")+e.qty:""}</span> ${e.name?esc(e.name):e.card?'<span class="mono muted">'+esc(e.card)+'</span>':'<span class="muted">smazaná karta</span>'}${e.by&&e.kind!=="adjust"?' <span class="muted small">· '+esc(e.by)+'</span>':""}</span><span class="muted">${fmtDT(e.at)}</span></li>`; }).join(""):`<li class="muted">Zatím nic. První zákazník se objeví po naskenování QR na pultu.</li>`;
   // customers
   let custLoaded=false, qTimer=0, idleDays=0;
   $$("[data-idle]").forEach(x=>x.addEventListener("click",()=>{ idleDays=+x.dataset.idle; $$("[data-idle]").forEach(y=>y.setAttribute("aria-pressed",String(y===x))); loadCustomers($("#cq").value.trim()); }));
@@ -148,15 +153,23 @@ async function viewOwner(tab){
     openSheet(`<p class="muted">Načítám…</p>`);
     try{
       const c=await rpc("owner_customer",{p_slug:s.slug,p_code:s.code,p_card:id});
-      const HK={import:"Převod z papírové kartičky",join:"Získal(a) kartu",stamp:"Návštěva (razítko)",redeem:"Vydaná odměna",review_click:"Otevřel(a) recenzi"};
+      const HK={import:"Převod z papírové kartičky",adjust:"Oprava počtu razítek majitelem",join:"Získal(a) kartu",stamp:"Návštěva (razítko)",redeem:"Vydaná odměna",review_click:"Otevřel(a) recenzi"};
       openSheet(`<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><h2 id="sheetTitle" style="font-size:1.6rem">${c.name?esc(c.name):"Zákazník"}</h2><span class="mono small muted">${short(c.token)}</span></div>
         ${c.email?`<p class="small muted">${esc(c.email)}</p>`:""}
         <div style="--accent:${esc(b.accent)}">${stampsGrid(c.stamps,b.stamps_needed,-1)}</div>
         <div class="kv"><div><b>${c.total_stamps}</b><span>návštěv celkem</span></div><div><b>${Math.min(c.stamps,b.stamps_needed)}/${b.stamps_needed}</b><span>na kartě</span></div><div><b>${c.rewards_redeemed}</b><span>vydaných odměn</span></div></div>
         <p class="small muted">Karta od ${fmtD(c.created_at)} · poslední návštěva ${c.last_stamp_at?fmtDT(c.last_stamp_at):"zatím žádná"}</p>
-        <b>Historie</b><ul class="feed">${(c.history||[]).map(h=>`<li><span>${HK[h.kind]||h.kind}${h.kind==="import"&&h.qty?" ("+h.qty+" "+plural(h.qty,"razítko","razítka","razítek")+")":""}</span><span class="muted">${fmtDT(h.at)}</span></li>`).join("")||'<li class="muted">Bez záznamů</li>'}</ul>
+        <b>Historie</b><ul class="feed">${(c.history||[]).map(h=>`<li><span>${HK[h.kind]||h.kind}${(h.kind==="import"||h.kind==="adjust")&&h.qty?" ("+(h.qty>0&&h.kind==="adjust"?"+":"")+h.qty+" "+plural(Math.abs(h.qty),"razítko","razítka","razítek")+")":""}${h.by&&h.kind!=="adjust"?'<span class="muted small"> · '+esc(h.by)+'</span>':""}</span><span class="muted">${fmtDT(h.at)}</span></li>`).join("")||'<li class="muted">Bez záznamů</li>'}</ul>
+        ${demo.on?"":`<details><summary class="small">Opravit počet razítek na kartě</summary><form class="form" id="adjForm" novalidate style="margin-top:10px"><p class="small muted">Třeba když obsluha omylem přidala razítko navíc. Oprava se zapíše do historie a nezapočítá se do návštěv.</p><div class="two" style="grid-template-columns:1fr auto"><input class="input" id="adjN" type="number" inputmode="numeric" min="0" max="${b.stamps_needed*3}" value="${c.stamps}" aria-label="Nový počet razítek"><button class="btn" type="submit">Uložit</button></div><div class="msg err" id="adjOut" role="status"></div></form></details>`}
         <button class="btn ghost" type="button" id="cClose">Zavřít</button>`);
       $("#cClose").addEventListener("click",closeSheet);
+      const af=$("#adjForm");
+      if(af) af.addEventListener("submit",async e=>{
+        e.preventDefault(); const k=parseInt($("#adjN").value,10);
+        if(!(k>=0&&k<=b.stamps_needed*3)){ $("#adjOut").textContent=ERR.bad_adjust; return; }
+        try{ await rpc("owner_adjust_stamps",{p_slug:s.slug,p_code:s.code,p_card:id,p_stamps:k}); openCustomer(id); if(custLoaded) loadCustomers($("#cq").value.trim()); }
+        catch(err){ if(authFail(err)){ closeSheet(); return; } $("#adjOut").textContent=say(err); }
+      });
     }catch(e){ openSheet(`<p class="msg err">${esc(say(e))}</p><button class="btn ghost" type="button" id="cClose">Zavřít</button>`); $("#cClose").addEventListener("click",closeSheet); }
   }
   $("#csvBtn").addEventListener("click",async()=>{
@@ -182,14 +195,23 @@ async function viewOwner(tab){
   $("#optForm").addEventListener("submit",async e=>{
     e.preventDefault(); const out=$("#optOut"); out.className="msg"; const lim=parseInt($("#oLimit").value,10);
     if(!(lim>=1&&lim<=20)){ out.className="msg err"; out.textContent=ERR.bad_limit; return; }
-    try{ await rpc("owner_set_options",{p_slug:s.slug,p_code:s.code,p_daily_limit:lim,p_welcome:$("#oWelcome").checked,p_rules:$("#oRules").value.trim()||null}); out.className="msg ok"; out.textContent="Uloženo."; }
+    const sp=$("#oSpend").value.trim()?parseInt($("#oSpend").value,10):null;
+    if(sp!==null&&!(sp>=1&&sp<=100000)){ out.className="msg err"; out.textContent=ERR.bad_spend; return; }
+    try{
+      await rpc("owner_set_options",{p_slug:s.slug,p_code:s.code,p_daily_limit:lim,p_welcome:$("#oWelcome").checked,p_rules:$("#oRules").value.trim()||null});
+      if(sp!==(b.avg_spend||null)){ await rpc("owner_set_spend",{p_slug:s.slug,p_code:s.code,p_avg_spend:sp}); b.avg_spend=sp; }
+      out.className="msg ok"; out.textContent="Uloženo.";
+    }
     catch(err){ out.className="msg err"; out.textContent=say(err); }
   });
   if($("#idleGo")) $("#idleGo").addEventListener("click",()=>{ show("cust"); const x=$('[data-idle="30"]'); if(x) x.click(); });
   $$("[data-print]").forEach(x=>x.addEventListener("click",()=>printPoster(x.dataset.print)));
+  $$("[data-card]").forEach(x=>x.addEventListener("click",()=>openCustomer(x.dataset.card)));
   $("#newStaff").addEventListener("click",async()=>{
     try{ const r=await rpc("owner_reset_staff_code",{p_slug:s.slug,p_code:s.code});
-      $("#staffCodeBox").innerHTML=`<p class="small muted">Nový kód obsluhy (zapište si ho, znovu se nezobrazí):</p><div class="bigcode">${esc(r.staff_code)}</div>`;
+      const joinUrl=BASE+"#/pripojit/"+encodeURIComponent(b.slug)+"/"+encodeURIComponent(r.staff_code);
+      $("#staffCodeBox").innerHTML=`<p class="small muted">Nový kód obsluhy (zapište si ho, znovu se nezobrazí):</p><div class="bigcode">${esc(r.staff_code)}</div>
+        <div class="panel stack" style="gap:10px;margin-top:12px"><b>Rychlé přihlášení obsluhy</b><p class="small muted">Zaměstnanec naskenuje tento QR svým telefonem a je přihlášený, nic neopisuje. Ukazujte ho jen zaměstnancům, ne zákazníkům.</p><div class="qr" style="width:min(220px,70vw);aspect-ratio:1;justify-self:center">${qrSVG(joinUrl)}</div></div>`;
       $("#newStaff").textContent="Vygenerovat nový kód obsluhy";
     }catch(e){ $("#staffCodeBox").innerHTML=`<p class="msg err">${esc(say(e))}</p>`; }
   });

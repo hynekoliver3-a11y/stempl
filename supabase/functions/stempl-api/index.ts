@@ -6,6 +6,7 @@
 //   reset_code    → returns + e-mails the new owner code
 //   lead          → stores a request from the landing page and e-mails it to the operator
 //   daily         → reminders and weekly summaries; only the database scheduler may call it (x-cron-key)
+//   lock_alert    → tells the owner that someone keeps entering wrong codes (called by the database, secret key)
 // Mail goes out over SMTP (default: Gmail with an app password).
 
 import nodemailer from "npm:nodemailer@6.9.16";
@@ -206,6 +207,19 @@ Deno.serve(async (req) => {
         return json(200, { ok: true });
       }
 
+      case "lock_alert": {
+        // The database calls this when a login gets locked. svc_lock_alert checks the secret and sends at most one mail an hour.
+        const r = await rpc("svc_lock_alert", { p_slug: String(body.slug ?? ""), p_key: String(body.key ?? "") });
+        if (r?.email) {
+          const staffUrl = `${APP_URL}#/prehled/set`;
+          await send(r.email, `Štempl: opakované chybné přihlášení – ${r.name}`, "Někdo zkouší špatné kódy",
+            `<p>K podniku <b>${esc(r.name)}</b> někdo za posledních 15 minut 10× zadal špatný kód. Přihlašování z jeho zařízení jsme na 15 minut zablokovali.</p>
+             <p>Pokud to byl někdo z vás (třeba nový zaměstnanec s překlepem), nemusíte nic dělat. Pokud ne, vygenerujte v Nastavení nový kód obsluhy. Starý kód tím přestane platit.</p>${btn(staffUrl, "Otevřít Nastavení")}`,
+            `K podniku ${r.name} někdo 10× zadal špatný kód. Pokud jste to nebyli vy, vygenerujte nový kód obsluhy: ${staffUrl}`);
+        }
+        return json(200, { ok: true });
+      }
+
       case "daily": {
         // Called once a day by the database scheduler, which sends a secret key. Anyone else is refused.
         // Safe to call more often: every mail is marked as sent in the database first.
@@ -228,13 +242,20 @@ Deno.serve(async (req) => {
             `Zkušební verze pro ${b.name} skončila. Aktivujte předplatné: ${dash}`).then(() => sent.push("te:" + b.slug)).catch((e) => console.error("trialend", b.slug, e));
         }
         for (const b of jobs.summary ?? []) {
-          const row = (n: number, label: string) => `<tr><td style="padding:6px 0;font-size:26px;font-weight:800;width:70px">${n}</td><td style="padding:6px 0;color:#6e675d">${label}</td></tr>`;
+          const diff = (n: number, p: number) => !b.has_prev ? "" : n === p ? ` <span style="color:#6e675d;font-size:13px">(stejně jako minulý týden)</span>` : ` <span style="color:${n > p ? "#256f45" : "#b42318"};font-size:13px">(${n > p ? "+" : "−"}${Math.abs(n - p)} proti minulému týdnu)</span>`;
+          const row = (n: number, label: string, prev?: number) => `<tr><td style="padding:6px 0;font-size:26px;font-weight:800;width:70px">${n}</td><td style="padding:6px 0;color:#6e675d">${label}${prev === undefined ? "" : diff(n, prev)}</td></tr>`;
+          const tip = !b.has_review_url ? "Doplňte v Nastavení odkaz na recenze na Googlu, ať zákazníky prosíme o hodnocení."
+            : b.idle_30d > 0 ? `${b.idle_30d} ${b.idle_30d === 1 ? "stálý zákazník tu nebyl" : "stálých zákazníků tu nebylo"} přes 30 dní. Najdete je v Přehled → Zákazníci → Nebyl 30 dní.`
+            : b.new_cards === 0 ? "Tento týden nepřibyla žádná karta. Připomeňte obsluze, ať se každého zeptá: Máte už naši kartu?"
+            : b.reviews === 0 ? "Nikdo tento týden neotevřel recenzi. Zkontrolujte, že odkaz na recenzi v Nastavení funguje."
+            : "";
           await send(b.email, `Štempl: váš týden – ${b.name}`, "Váš týden ve Štemplu",
-            `<p>Za posledních 7 dní v <b>${esc(b.name)}</b>:</p><table style="border-collapse:collapse">${row(b.stamps, "razítek (návštěv)")}${row(b.new_cards, "nových zákazníků s kartou")}${row(b.redeems, "vydaných odměn")}${row(b.reviews, "otevřelo recenzi na Googlu")}</table>
-             <p>Celkem má kartu ${b.customers} zákazníků.</p>${b.has_review_url ? "" : `<p style="color:#b45309">Tip: doplňte v nastavení odkaz na recenze na Googlu, ať zákazníky prosíme o hodnocení.</p>`}
+            `<p>Za posledních 7 dní v <b>${esc(b.name)}</b>:</p><table style="border-collapse:collapse">${row(b.stamps, "razítek (návštěv)", b.stamps_prev)}${row(b.new_cards, "nových zákazníků s kartou", b.new_cards_prev)}${row(b.redeems, "vydaných odměn")}${row(b.reviews, "otevřelo formulář recenze na Googlu")}</table>
+             <p>Celkem má kartu ${b.customers} zákazníků.</p>${tip ? `<p style="color:#9a4a07"><b>Tip na tento týden:</b> ${esc(tip)}</p>` : ""}
              ${btn(`${APP_URL}#/prehled`, "Otevřít přehled")}<p style="font-size:12px;color:#6e675d">Souhrn můžete vypnout v Přehled → Nastavení.</p>`,
             `${b.name} za 7 dní: ${b.stamps} razítek, ${b.new_cards} nových zákazníků, ${b.redeems} odměn, ${b.reviews} recenzí.`).then(() => sent.push("s:" + b.slug)).catch((e) => console.error("summary", b.slug, e));
         }
+        await rpc("svc_log_job", { p_job: "daily", p_ok: true, p_detail: { sent, trial_3d: (jobs.trial_3d ?? []).length, trial_end: (jobs.trial_end ?? []).length, summary: (jobs.summary ?? []).length } }).catch((e) => console.error("log job", e));
         return json(200, { ok: true, sent });
       }
 
@@ -242,6 +263,7 @@ Deno.serve(async (req) => {
         return json(400, { error: "unknown_action" });
     }
   } catch (e) {
+    if (body?.action === "daily") await rpc("svc_log_job", { p_job: "daily", p_ok: false, p_detail: { error: String((e as Error)?.message ?? e).slice(0, 300) } }).catch(() => {});
     if (e instanceof AppError) return json(400, { error: e.message });
     console.error(e);
     return json(500, { error: "server_error" });

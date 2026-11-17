@@ -15,11 +15,13 @@ function demoData(){
   const pattern=[3,5,2,6,7,9,2,4,5,3,6,8,10,4];
   const daily=pattern.map((s,i)=>({day:iso(now-(13-i)*day).slice(0,10),stamps:s}));
   const kinds=["stamp","stamp","review_click","stamp","redeem","stamp","join","stamp"];
-  const recent=kinds.map((k,i)=>({kind:k,name:cards[(i*5+2)%cards.length].name,at:iso(now-(i*47+12)*6e4)}));
-  const business={name:"Kavárna Ukázka",slug:"ukazka",accent:"#b45309",category:"kavarna",reward_text:"Káva zdarma",stamps_needed:N,google_review_url:"https://g.page/r/ukazka/review",has_staff_code:true,owner_email:"majitel@priklad.cz",weekly_summary:true,active:true,daily_stamp_limit:2,welcome_stamp:true,rules_text:"Razítko za každý nápoj. Razítka nepropadají."};
+  const recent=kinds.map((k,i)=>({kind:k,name:cards[(i*5+2)%cards.length].name,by:k==="stamp"||k==="redeem"?["Jana","Petr"][i%2]:null,at:iso(now-(i*47+12)*6e4)}));
+  const business={name:"Kavárna Ukázka",slug:"ukazka",accent:"#b45309",category:"kavarna",reward_text:"Káva zdarma",stamps_needed:N,google_review_url:"https://g.page/r/ukazka/review",has_staff_code:true,owner_email:"majitel@priklad.cz",weekly_summary:true,active:true,daily_stamp_limit:2,welcome_stamp:true,rules_text:"Razítko za každý nápoj. Razítka nepropadají.",avg_spend:95};
   const billing={id:"demo",status:"active",plan:"year",active:true,in_trial:false,comp:false,paid_until:iso(now+212*day),cancel_at_period_end:false,billing_email:null};
   const stats={business,billing,customers:cards.length,returning:cards.filter(c=>c.total_stamps>=2).length,new_30d:cards.filter(c=>now-new Date(c.created_at)<30*day).length,
-    stamps_30d:131,idle_30d:cards.filter(c=>now-new Date(c.last_stamp_at)>30*day).length,redeemed_total:cards.reduce((a,c)=>a+c.rewards_redeemed,0),review_clicks_30d:17,daily,recent};
+    stamps_30d:131,returning_visits_30d:104,
+    by_staff:[{name:"Jana",stamps:71,redeems:6},{name:"Petr",stamps:48,redeems:4},{name:"majitel",stamps:12,redeems:1}],
+    busy_cards_7d:[{id:cards[0].id,code:cards[0].code,name:cards[0].name,stamps:7,days:5}],idle_30d:cards.filter(c=>now-new Date(c.last_stamp_at)>30*day).length,redeemed_total:cards.reduce((a,c)=>a+c.rewards_redeemed,0),review_clicks_30d:17,daily,recent};
   return demo.data={cards,stats};
 }
 async function demoRpc(fn,a){

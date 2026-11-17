@@ -126,7 +126,7 @@ function viewLanding(){
     <div class="stack" style="gap:10px">
       <div class="eyebrow">Kdo za tím stojí</div>
       <h2 style="font-size:clamp(1.6rem,3.4vw,2.2rem)">${esc(PROVIDER.name)}, ${esc(PROVIDER.city)}</h2>
-      <p>Štempl jsem postavil sám a starám se o něj osobně. Jsem z Brna, takže za vámi přijdu, kartu nastavím, přinesu stojánek s QR kódem a ukážu obsluze, jak dát razítko. Když něco nefunguje, píšete přímo mně, ne na zákaznickou linku.</p>
+      <p>Štempl jsem postavil sám a starám se o něj osobně. Jsem z Brna, takže za vámi přijdu, kartu nastavím a ukážu obsluze, jak dát razítko. Když něco nefunguje, píšete přímo mně, ne na zákaznickou linku.</p>
       <p class="small muted">${PROVIDER.phone?`Telefon <a href="tel:${esc(PROVIDER.phone.replace(/\s+/g,""))}">${esc(PROVIDER.phone)}</a> · `:""}E-mail <a href="mailto:${esc(PROVIDER.email)}">${esc(PROVIDER.email)}</a>${PROVIDER.ico?" · IČO "+esc(PROVIDER.ico):""}</p>
       <div class="row-btns"><a class="btn primary" href="#/" data-jump="poptavka">Domluvit nastavení</a></div>
     </div>
